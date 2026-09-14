@@ -11,8 +11,40 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 include(ProjectOptions)
 include(CMakePackageConfigHelpers)
+include(CheckCXXSourceCompiles)
+include(CMakePushCheckState)
 include(GNUInstallDirs)
 find_package(Threads REQUIRED)
+
+# Some Clang/Linux toolchains lower std::atomic::is_lock_free() to a symbol in
+# libatomic, while GCC can provide the same operation without an extra library.
+# Detect the actual link requirement instead of keying behavior to a compiler
+# brand. PUBLIC propagation is required because the call appears in templates
+# instantiated by consumers of the installed headers.
+set(event_dispatcher_atomic_probe [[
+    #include <atomic>
+    #include <cstddef>
+    int main() {
+        std::atomic<std::size_t> value{0};
+        return value.is_lock_free() ? 0 : 1;
+    }
+]])
+cmake_push_check_state(RESET)
+check_cxx_source_compiles("${event_dispatcher_atomic_probe}"
+    EVENT_DISPATCHER_ATOMICS_LINK_WITHOUT_LIBRARY
+)
+set(event_dispatcher_atomic_runtime_library)
+if(NOT EVENT_DISPATCHER_ATOMICS_LINK_WITHOUT_LIBRARY)
+    set(CMAKE_REQUIRED_LIBRARIES atomic)
+    check_cxx_source_compiles("${event_dispatcher_atomic_probe}"
+        EVENT_DISPATCHER_ATOMICS_LINK_WITH_LIBATOMIC
+    )
+    if(NOT EVENT_DISPATCHER_ATOMICS_LINK_WITH_LIBATOMIC)
+        message(FATAL_ERROR "std::atomic runtime support is unavailable")
+    endif()
+    set(event_dispatcher_atomic_runtime_library atomic)
+endif()
+cmake_pop_check_state()
 
 add_library(event_dispatcher
     src/config.cpp
@@ -28,7 +60,9 @@ target_include_directories(event_dispatcher
         $<INSTALL_INTERFACE:include>
 )
 target_link_libraries(event_dispatcher
-    PUBLIC Threads::Threads
+    PUBLIC
+        Threads::Threads
+        ${event_dispatcher_atomic_runtime_library}
     PRIVATE
         $<BUILD_INTERFACE:project_options>
         $<BUILD_INTERFACE:project_warnings>

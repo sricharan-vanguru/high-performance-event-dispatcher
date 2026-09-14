@@ -7,6 +7,8 @@
 - Added configurable worker batching with one subscriber snapshot per batch.
 - Added allocation, callback-erasure, and batch-throughput measurements plus
   construction, exception, ownership, metrics, and snapshot-consistency tests.
+- Added feature-detected transitive `libatomic` linkage for Clang/Linux
+  toolchains whose runtime lock-free queries require it.
 
 ## 1.1.0
 
