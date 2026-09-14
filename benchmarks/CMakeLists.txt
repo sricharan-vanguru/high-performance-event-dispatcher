@@ -1,0 +1,9 @@
+add_executable(event_dispatcher_benchmark_skeleton
+    benchmark_skeleton.cpp
+)
+target_link_libraries(event_dispatcher_benchmark_skeleton
+    PRIVATE
+        event_dispatcher::event_dispatcher
+        project_options
+        project_warnings
+)

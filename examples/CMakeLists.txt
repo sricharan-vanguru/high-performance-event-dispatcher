@@ -1,0 +1,9 @@
+add_executable(event_dispatcher_configuration_example
+    configuration.cpp
+)
+target_link_libraries(event_dispatcher_configuration_example
+    PRIVATE
+        event_dispatcher::event_dispatcher
+        project_options
+        project_warnings
+)
