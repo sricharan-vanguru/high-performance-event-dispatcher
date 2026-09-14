@@ -4,7 +4,6 @@
 
 int main() {
     const auto config = event_dispatcher::dispatcher_config::hardware_concurrency_defaults();
-    std::cout << "event-dispatcher " << event_dispatcher::version()
-              << ": workers=" << config.worker_count
+    std::cout << "event-dispatcher: workers=" << config.worker_count
               << ", queue-capacity=" << config.queue_capacity << '\n';
 }
