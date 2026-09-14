@@ -11,11 +11,9 @@ backpressure. The executable reports throughput plus p50, p95, and p99 latency.
 Build and run an optimized baseline:
 
 ```bash
-cmake -S . -B build-bench -G Ninja \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DEVENT_DISPATCHER_BUILD_BENCHMARKS=ON
-cmake --build build-bench
-./build-bench/benchmarks/event_dispatcher_bounded_mutex_queue_benchmark
+cmake --preset benchmarks
+cmake --build --preset benchmarks
+./build/benchmarks/benchmarks/event_dispatcher_bounded_mutex_queue_benchmark
 ```
 
 Results are not comparable unless the CPU, operating system, compiler, build

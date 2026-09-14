@@ -26,9 +26,29 @@ See the [architecture](docs/architecture.md),
 ## Build
 
 ```bash
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-cmake --build build
-ctest --test-dir build --output-on-failure
+cmake --preset release
+cmake --build --preset release
+ctest --preset release
+```
+
+All generated configurations are kept below one ignored directory:
+
+```text
+build/
+├── debug/
+├── release/
+├── asan-ubsan/
+├── tsan/
+└── benchmarks/
+```
+
+Other standard workflows:
+
+```bash
+cmake --preset debug && cmake --build --preset debug && ctest --preset debug
+cmake --preset asan-ubsan && cmake --build --preset asan-ubsan
+ctest --preset asan-ubsan
+cmake --preset benchmarks && cmake --build --preset benchmarks
 ```
 
 Optional switches:
