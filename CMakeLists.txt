@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.24)
 
 project(
     high_performance_event_dispatcher
-    VERSION 0.5.0
+    VERSION 1.0.0
     DESCRIPTION "A modular, high-performance concurrent event dispatcher"
     LANGUAGES CXX
 )
@@ -10,6 +10,9 @@ project(
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 include(ProjectOptions)
+include(CMakePackageConfigHelpers)
+include(GNUInstallDirs)
+find_package(Threads REQUIRED)
 
 add_library(event_dispatcher
     src/config.cpp
@@ -24,7 +27,12 @@ target_include_directories(event_dispatcher
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
 )
-target_link_libraries(event_dispatcher PUBLIC project_options project_warnings)
+target_link_libraries(event_dispatcher
+    PUBLIC Threads::Threads
+    PRIVATE
+        $<BUILD_INTERFACE:project_options>
+        $<BUILD_INTERFACE:project_warnings>
+)
 
 if(EVENT_DISPATCHER_BUILD_TESTS)
     enable_testing()
@@ -38,3 +46,38 @@ endif()
 if(EVENT_DISPATCHER_BUILD_BENCHMARKS)
     add_subdirectory(benchmarks)
 endif()
+
+install(TARGETS event_dispatcher
+    EXPORT HighPerformanceEventDispatcherTargets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(FILES LICENSE README.md CHANGELOG.md
+    DESTINATION ${CMAKE_INSTALL_DOCDIR}
+)
+
+set(package_directory "${CMAKE_INSTALL_LIBDIR}/cmake/HighPerformanceEventDispatcher")
+configure_package_config_file(
+    cmake/HighPerformanceEventDispatcherConfig.cmake.in
+    "${CMAKE_CURRENT_BINARY_DIR}/HighPerformanceEventDispatcherConfig.cmake"
+    INSTALL_DESTINATION "${package_directory}"
+)
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/HighPerformanceEventDispatcherConfigVersion.cmake"
+    VERSION "${PROJECT_VERSION}"
+    COMPATIBILITY SameMajorVersion
+)
+
+install(EXPORT HighPerformanceEventDispatcherTargets
+    FILE HighPerformanceEventDispatcherTargets.cmake
+    NAMESPACE event_dispatcher::
+    DESTINATION "${package_directory}"
+)
+install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/HighPerformanceEventDispatcherConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/HighPerformanceEventDispatcherConfigVersion.cmake"
+    DESTINATION "${package_directory}"
+)

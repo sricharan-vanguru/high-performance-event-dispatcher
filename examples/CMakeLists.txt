@@ -1,39 +1,15 @@
-add_executable(event_dispatcher_configuration_example
-    configuration.cpp
-)
-target_link_libraries(event_dispatcher_configuration_example
-    PRIVATE
-        event_dispatcher::event_dispatcher
-        project_options
-        project_warnings
-)
+function(add_event_dispatcher_example target source)
+    add_executable(${target} ${source})
+    target_link_libraries(${target}
+        PRIVATE event_dispatcher::event_dispatcher project_options project_warnings
+    )
+endfunction()
 
-add_executable(event_dispatcher_queue_example
-    queue_usage.cpp
-)
-target_link_libraries(event_dispatcher_queue_example
-    PRIVATE
-        event_dispatcher::event_dispatcher
-        project_options
-        project_warnings
-)
-
-add_executable(event_dispatcher_registry_example
-    registry_usage.cpp
-)
-target_link_libraries(event_dispatcher_registry_example
-    PRIVATE
-        event_dispatcher::event_dispatcher
-        project_options
-        project_warnings
-)
-
-add_executable(event_dispatcher_dispatcher_example dispatcher_usage.cpp)
-target_link_libraries(event_dispatcher_dispatcher_example
-    PRIVATE event_dispatcher::event_dispatcher project_options project_warnings
-)
-
-add_executable(event_dispatcher_lifecycle_example lifecycle_usage.cpp)
-target_link_libraries(event_dispatcher_lifecycle_example
-    PRIVATE event_dispatcher::event_dispatcher project_options project_warnings
-)
+add_event_dispatcher_example(event_dispatcher_configuration_example configuration.cpp)
+add_event_dispatcher_example(event_dispatcher_queue_example queue_usage.cpp)
+add_event_dispatcher_example(event_dispatcher_registry_example registry_usage.cpp)
+add_event_dispatcher_example(event_dispatcher_dispatcher_example dispatcher_usage.cpp)
+add_event_dispatcher_example(event_dispatcher_lifecycle_example lifecycle_usage.cpp)
+add_event_dispatcher_example(event_dispatcher_object_subscriber_example object_subscriber.cpp)
+add_event_dispatcher_example(event_dispatcher_error_handling_example error_handling.cpp)
+add_event_dispatcher_example(event_dispatcher_backpressure_example backpressure.cpp)

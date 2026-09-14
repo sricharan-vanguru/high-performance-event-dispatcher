@@ -1,8 +1,8 @@
 # Worker Pool and Reference Dispatcher
 
-Phase 3 connects the bounded queue and snapshot registry into the first complete
-asynchronous dispatcher. It is the correctness reference for later optimized
-queue and lifetime policies.
+The reference dispatcher connects the bounded queue and snapshot registry into
+a complete asynchronous delivery path. It defines the correctness contract for
+alternative queue and lifetime policies.
 
 ## Event flow
 
@@ -56,7 +56,7 @@ if a worker later encounters an older snapshot.
 
 - `try_publish` never waits and returns `success`, `full`, or `closed`.
 - `publish` waits for capacity and can be interrupted with `std::stop_token`.
-- `shutdown` is idempotent; Phase 4 supports drain and discard policies.
+- `shutdown` is idempotent and supports drain and discard policies.
 - Queue close is the acceptance boundary: earlier accepted events drain; later
   publication returns `closed`.
 - Concurrent calls to `shutdown` are serialized.
@@ -72,7 +72,7 @@ order is not globally FIFO. With one worker, broadcasts occur serially in queue
 dequeue order. Within one broadcast, subscribers are visited in snapshot order.
 
 The same subscriber can execute concurrently for different events when more
-than one worker exists. Per-subscriber serialization is a separate Phase 8
+than one worker exists. Per-subscriber serialization is not provided by this
 delivery policy.
 
 ## Callback failures

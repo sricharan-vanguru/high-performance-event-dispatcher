@@ -23,6 +23,6 @@ defers final retirement until the current invocation exits.
 
 Implementations can be substituted and benchmarked without silently changing
 observable semantics. New algorithms require a short correctness argument and
-tests for their linearization, ordering, lifetime, and shutdown behavior. Some
-API result details remain intentionally open until Phase 1 supplies concrete
-queue states.
+tests for their linearization, ordering, lifetime, and shutdown behavior. The
+public APIs preserve these terms through explicit success, capacity, lifecycle,
+cancellation, and timeout outcomes.

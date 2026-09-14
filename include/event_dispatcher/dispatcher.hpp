@@ -176,7 +176,7 @@ class dispatcher final {
     [[nodiscard]] std::size_t subscriber_count() const {
         return state_->subscribers.active_count();
     }
-    [[nodiscard]] lifecycle_state state() const noexcept {
+    [[nodiscard]] lifecycle_state lifecycle() const noexcept {
         return state_->lifecycle.load(std::memory_order_acquire);
     }
     [[nodiscard]] dispatcher_metrics metrics() const noexcept {
@@ -263,9 +263,6 @@ class dispatcher final {
                                                                   error_handler handler) {
         if (config.worker_count == 0U) {
             throw std::invalid_argument{"dispatcher worker_count must be non-zero"};
-        }
-        if (config.callback_mode != callback_concurrency::concurrent) {
-            throw std::invalid_argument{"serialized callbacks are planned for Phase 8"};
         }
         return std::make_shared<shared_state>(config.queue_capacity, std::move(handler));
     }

@@ -1,6 +1,6 @@
 # Shutdown and Backpressure
 
-Phase 4 makes overload and lifecycle behavior explicit and observable.
+The dispatcher makes overload and lifecycle behavior explicit and observable.
 
 ## Lifecycle
 

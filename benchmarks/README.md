@@ -1,6 +1,6 @@
 # Benchmark Methodology
 
-The Phase 1 executable measures the correctness-first `bounded_mutex_queue` in
+The queue benchmark measures the correctness-first `bounded_mutex_queue` in
 four topologies: SPSC, MPSC, SPMC, and MPMC. Every case transfers 100,000
 eight-byte events through a capacity-1024 queue.
 

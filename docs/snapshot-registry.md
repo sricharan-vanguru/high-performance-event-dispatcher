@@ -1,6 +1,6 @@
 # Subscriber State and Snapshot Registry
 
-Phase 2 separates two concerns:
+The subscription design separates two concerns:
 
 - `subscriber_state<Event>` owns callback activity and safe retirement.
 - `snapshot_registry<Event>` owns membership and immutable list publication.
@@ -86,9 +86,9 @@ rather than one Boolean flag.
 ## Callback exceptions
 
 `try_invoke` does not choose application error policy. Callback exceptions
-propagate to the future dispatcher, while an RAII guard releases the in-flight
-count during stack unwinding. Phase 3 will contain exceptions at the worker
-boundary and forward them to an error policy.
+propagate to the dispatcher worker boundary, while an RAII guard releases the
+in-flight count during stack unwinding. The worker reports the exception and
+continues delivery.
 
 ## Ownership boundaries
 
@@ -97,8 +97,9 @@ Registry snapshots share ownership of callback control blocks. The move-only
 token first retires its previous registration and then accepts the incoming one.
 
 The callback's captured application object has a separate lifetime. Capturing a
-raw `this` is not made safe by retaining the control block. A later phase will
-add a weak-ownership helper for externally owned objects.
+raw `this` is not made safe by retaining the control block. Weak-object
+subscription is not part of the current API; callers should use an explicit
+strong or weak capture appropriate for their ownership model.
 
 ## Complexity
 

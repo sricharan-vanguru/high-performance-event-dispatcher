@@ -130,6 +130,16 @@ void test_timed_push_reports_timeout_and_preserves_event() {
     expect(retryable == "retryable", "timed-out push consumed the event");
 }
 
+void test_timed_push_immediate_progress_wins() {
+    bounded_mutex_queue<int> queue{1U};
+    std::stop_source stopped;
+    stopped.request_stop();
+    const auto expired = std::chrono::steady_clock::now() - 1ms;
+    expect(queue.wait_push_until(7, expired, stopped.get_token()) == queue_status::success,
+           "available capacity did not win over timeout and cancellation");
+    expect(queue.try_pop().value() == 7, "immediate timed push stored wrong event");
+}
+
 void test_waiting_consumer_wakes_for_event() {
     bounded_mutex_queue<int> queue{1U};
     std::promise<void> entered;
@@ -429,6 +439,7 @@ int main() {
     test_close_and_drain();
     test_close_and_discard_destroys_queued_events();
     test_timed_push_reports_timeout_and_preserves_event();
+    test_timed_push_immediate_progress_wins();
     test_waiting_consumer_wakes_for_event();
     test_waiting_consumer_wakes_for_close_and_stop();
     test_waiting_producer_wakes_for_space_close_and_stop();

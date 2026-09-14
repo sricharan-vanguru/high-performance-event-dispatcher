@@ -9,17 +9,10 @@ enum class shutdown_policy {
     discard,
 };
 
-enum class callback_concurrency {
-    concurrent,
-    serialized,
-};
-
 struct dispatcher_config final {
     std::size_t queue_capacity{4096};
     std::size_t worker_count{1};
     shutdown_policy shutdown{shutdown_policy::drain};
-    callback_concurrency callback_mode{callback_concurrency::concurrent};
-
     [[nodiscard]] static dispatcher_config hardware_concurrency_defaults() noexcept;
 };
 
