@@ -27,3 +27,8 @@ target_link_libraries(event_dispatcher_registry_example
         project_options
         project_warnings
 )
+
+add_executable(event_dispatcher_dispatcher_example dispatcher_usage.cpp)
+target_link_libraries(event_dispatcher_dispatcher_example
+    PRIVATE event_dispatcher::event_dispatcher project_options project_warnings
+)

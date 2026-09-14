@@ -23,14 +23,14 @@
 - Deadlock-free self-unsubscribe
 - Old-snapshot and lifetime race tests
 
-## Next
-
 ### Phase 3 / v0.4.0 — Worker pool and reference dispatcher
 
-- `std::jthread` worker lifecycle
-- Dispatcher facade connecting queue and registry
-- Broadcast semantics and callback error containment
-- End-to-end concurrency tests and examples
+- `std::jthread` worker lifecycle and drain shutdown
+- Dispatcher facade connecting queue and snapshot registry
+- Explicit publication outcomes and callback error containment
+- End-to-end producer, worker, subscriber, and lifetime tests
+
+## Next
 
 ### Phase 4 / v0.5.0 — Shutdown and backpressure hardening
 

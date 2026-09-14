@@ -3,9 +3,10 @@
 A modular C++20 event dispatcher for studying high-throughput publication,
 safe concurrent subscription changes, and subscriber lifetime management.
 
-The repository currently contains the architecture contracts, a correctness-first
-bounded mutex queue, and safe copy-on-write subscriber registration. Runtime
-worker dispatch will be added before introducing a bounded lock-free MPMC path.
+The repository now contains a complete correctness-first asynchronous dispatcher:
+a bounded mutex queue, copy-on-write subscriber registry, and `std::jthread`
+worker pool. This reference path establishes behavior before a bounded lock-free
+MPMC queue is introduced.
 
 ## Intended guarantees
 
@@ -20,7 +21,8 @@ See the [architecture](docs/architecture.md),
 [concurrency contract](docs/concurrency-contract.md),
 [policy boundaries](docs/policy-boundaries.md),
 [bounded mutex queue design](docs/bounded-mutex-queue.md),
-[subscriber state and snapshot registry](docs/snapshot-registry.md), and the
+[subscriber state and snapshot registry](docs/snapshot-registry.md),
+[worker pool and reference dispatcher](docs/reference-dispatcher.md), and the
 [public roadmap](docs/roadmap.md).
 
 ## Build
@@ -67,6 +69,6 @@ use separate build directories because those runtimes are incompatible.
 
 ## Current status
 
-Phase 2 safe subscriber state and immutable snapshot registry implemented. No
+Phase 3 worker pool and reference dispatcher implemented. No
 lock-free claim is made before the corresponding implementation, correctness
 tests, and benchmarks exist.
