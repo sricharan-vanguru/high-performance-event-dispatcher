@@ -22,3 +22,13 @@ Results are not comparable unless the CPU, operating system, compiler, build
 flags, queue capacity, event size, thread counts, and machine load are also
 recorded. The benchmark intentionally uses no external framework yet; a later
 phase may add one after workload semantics stabilize.
+
+## Snapshot registry baseline
+
+`event_dispatcher_snapshot_registry_benchmark` measures immutable snapshot
+acquisition and copy-on-write membership changes at 1, 10, 100, and 1,000
+subscribers. A subscribe/reset iteration counts as two membership changes.
+
+The expected trade-off is inexpensive, low-lock dispatch reads in exchange for
+`O(subscriber_count)` writes. Results must be recorded with the same machine and
+compiler context described above.

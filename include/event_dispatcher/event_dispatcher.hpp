@@ -5,6 +5,8 @@
 #include "event_dispatcher/queue/concurrent_queue.hpp"
 #include "event_dispatcher/queue/pop_result.hpp"
 #include "event_dispatcher/queue/queue_status.hpp"
+#include "event_dispatcher/registry/snapshot_registry.hpp"
+#include "event_dispatcher/subscription/subscriber_state.hpp"
 #include "event_dispatcher/subscription/subscription.hpp"
 
 // This umbrella header is intentionally small. Concrete dispatcher, queue,

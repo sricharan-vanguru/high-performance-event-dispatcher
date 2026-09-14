@@ -1,30 +1,58 @@
-# Implementation roadmap
+# Implementation Roadmap
 
-## Phase 1: Correct reference implementation
+## Completed
 
-- Mutex-backed bounded queue (implemented)
-- Subscriber control block and immutable registry snapshot
-- Move-only RAII subscription
-- Worker lifecycle, backpressure, exception handling, and shutdown
-- Deterministic unit tests and race-oriented stress tests
+### Phase 0 — Architecture contracts
 
-## Phase 2: Performance publication path
+- Concurrency vocabulary and progress guarantees
+- Module boundaries and performance-aware SOLID decisions
+- Sanitizer-aware build configuration
 
-- Bounded MPMC ring buffer with per-cell sequence numbers
-- In-place event construction and destruction
-- Cache-line layout review
-- Mutex baseline versus MPMC queue benchmarks
+### Phase 1 / v0.2.0 — Correct bounded mutex queue
 
-## Phase 3: Lifetime strategy comparison
+- Fixed-capacity MPMC ring storage
+- Non-blocking and interruptible blocking operations
+- Explicit close, stop, full, and empty behavior
+- Concurrent stress tests and latency baseline
 
-- Shared-ownership callback state
-- Weak-ownership subscriber helper
-- Intrusive or epoch-based experimental policy
-- Documented memory, latency, complexity, and safety trade-offs
+### Phase 2 / v0.3.0 — Safe subscriber registry
 
-## Phase 4: Production hardening
+- Shared subscriber control blocks
+- Immutable copy-on-write registry snapshots
+- Strong synchronous unsubscribe
+- Deadlock-free self-unsubscribe
+- Old-snapshot and lifetime race tests
 
-- AddressSanitizer, UndefinedBehaviorSanitizer, and ThreadSanitizer jobs
-- Fault injection and shutdown stress testing
-- API documentation and usage examples
-- Reproducible benchmark reports
+## Next
+
+### Phase 3 / v0.4.0 — Worker pool and reference dispatcher
+
+- `std::jthread` worker lifecycle
+- Dispatcher facade connecting queue and registry
+- Broadcast semantics and callback error containment
+- End-to-end concurrency tests and examples
+
+### Phase 4 / v0.5.0 — Shutdown and backpressure hardening
+
+- Drain and discard shutdown state machines
+- Reject, blocking, and timeout backpressure
+- Shutdown race matrix and observable rejection counters
+
+### Phase 5 / v1.0.0 — Stable correctness-first release
+
+- Public API review and thread-safety documentation
+- GCC/Clang CI and sanitizer jobs
+- Installation, packaging, license, and reproducible baseline
+
+## Advanced track
+
+- v1.1.0: bounded lock-free MPMC queue
+- v1.2.0: allocation control, emplacement, and batching
+- v1.3.0: delivery policies and slow-subscriber isolation
+- v1.4.0: weak ownership
+- v1.5.0: intrusive lifetime experiment
+- v2.0.0: epoch/RCU-style reclamation
+- v2.1.0: queue sharding
+- v2.2.0: Linux affinity and adaptive waiting
+- v2.3.0: low-overhead observability
+- v3.0.0: NUMA-aware experimental dispatcher

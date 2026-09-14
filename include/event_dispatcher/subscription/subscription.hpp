@@ -26,7 +26,18 @@ public:
     subscription(const subscription&) = delete;
     subscription& operator=(const subscription&) = delete;
     subscription(subscription&&) noexcept = default;
-    subscription& operator=(subscription&&) noexcept = default;
+
+    subscription& operator=(subscription&& other) noexcept {
+        if (this != &other) {
+            // A defaulted shared_ptr move-assignment would merely release the
+            // old control block. The registry could still own that state, which
+            // would leave an active callback with no token able to unsubscribe
+            // it. Retire the old registration before accepting the new one.
+            reset();
+            control_ = std::move(other.control_);
+        }
+        return *this;
+    }
 
     ~subscription() { reset(); }
 

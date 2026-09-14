@@ -7,3 +7,13 @@ target_link_libraries(event_dispatcher_bounded_mutex_queue_benchmark
         project_options
         project_warnings
 )
+
+add_executable(event_dispatcher_snapshot_registry_benchmark
+    snapshot_registry_benchmark.cpp
+)
+target_link_libraries(event_dispatcher_snapshot_registry_benchmark
+    PRIVATE
+        event_dispatcher::event_dispatcher
+        project_options
+        project_warnings
+)
