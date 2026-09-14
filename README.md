@@ -3,9 +3,9 @@
 A modular C++20 event dispatcher for studying high-throughput publication,
 safe concurrent subscription changes, and subscriber lifetime management.
 
-The repository currently contains the buildable architecture skeleton. Runtime
-dispatch behavior will be added incrementally, beginning with a correctness-first
-reference implementation and then a bounded MPMC publication path.
+The repository currently contains the architecture contracts and the first
+functional component: a correctness-first bounded mutex queue. Runtime dispatch
+will be added incrementally before introducing a bounded lock-free MPMC path.
 
 ## Intended guarantees
 
@@ -18,7 +18,8 @@ reference implementation and then a bounded MPMC publication path.
 
 See the [architecture](docs/architecture.md),
 [concurrency contract](docs/concurrency-contract.md),
-[policy boundaries](docs/policy-boundaries.md), and
+[policy boundaries](docs/policy-boundaries.md),
+[bounded mutex queue design](docs/bounded-mutex-queue.md), and the
 [public roadmap](docs/roadmap.md).
 
 ## Build
@@ -45,5 +46,5 @@ use separate build directories because those runtimes are incompatible.
 
 ## Current status
 
-Architecture skeleton only. No performance or lock-free claim is made before
-the corresponding implementation, correctness tests, and benchmarks exist.
+Phase 1 bounded mutex queue implemented. No lock-free claim is made before the
+corresponding implementation, correctness tests, and benchmarks exist.

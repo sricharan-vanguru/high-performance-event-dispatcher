@@ -1,7 +1,7 @@
-add_executable(event_dispatcher_benchmark_skeleton
-    benchmark_skeleton.cpp
+add_executable(event_dispatcher_bounded_mutex_queue_benchmark
+    bounded_mutex_queue_benchmark.cpp
 )
-target_link_libraries(event_dispatcher_benchmark_skeleton
+target_link_libraries(event_dispatcher_bounded_mutex_queue_benchmark
     PRIVATE
         event_dispatcher::event_dispatcher
         project_options

@@ -2,7 +2,7 @@
 
 ## Phase 1: Correct reference implementation
 
-- Mutex-backed bounded queue
+- Mutex-backed bounded queue (implemented)
 - Subscriber control block and immutable registry snapshot
 - Move-only RAII subscription
 - Worker lifecycle, backpressure, exception handling, and shutdown
