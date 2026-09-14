@@ -16,7 +16,10 @@ reference implementation and then a bounded MPMC publication path.
 - RAII subscriptions and documented self-unsubscription behavior
 - Pluggable ownership experiments: shared, weak, and intrusive
 
-See [architecture](docs/architecture.md) and [roadmap](docs/roadmap.md).
+See the [architecture](docs/architecture.md),
+[concurrency contract](docs/concurrency-contract.md),
+[policy boundaries](docs/policy-boundaries.md), and
+[public roadmap](docs/roadmap.md).
 
 ## Build
 
@@ -33,8 +36,12 @@ EVENT_DISPATCHER_BUILD_TESTS=ON
 EVENT_DISPATCHER_BUILD_EXAMPLES=ON
 EVENT_DISPATCHER_BUILD_BENCHMARKS=OFF
 EVENT_DISPATCHER_ENABLE_SANITIZERS=OFF
+EVENT_DISPATCHER_ENABLE_THREAD_SANITIZER=OFF
 EVENT_DISPATCHER_WARNINGS_AS_ERRORS=OFF
 ```
+
+AddressSanitizer/UndefinedBehaviorSanitizer and ThreadSanitizer intentionally
+use separate build directories because those runtimes are incompatible.
 
 ## Current status
 
