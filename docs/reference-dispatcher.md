@@ -23,11 +23,12 @@ publish(event)
                                  callback C(event)
 ```
 
-Exactly one worker dequeues each accepted event. That worker acquires the
-subscriber snapshot after dequeue and broadcasts the event to every active
-subscriber in that snapshot. Subscription changes made after snapshot
-acquisition apply to a later event; synchronous unsubscription can still make
-entry from an old snapshot fail safely.
+Exactly one worker dequeues each accepted event. A worker claims up to its
+configured batch size, then acquires one subscriber snapshot and broadcasts
+every claimed event to every active subscriber in that snapshot. Subscription
+changes made after snapshot acquisition apply to a later batch; synchronous
+unsubscription can still make entry from an old snapshot fail safely. The
+default batch size is one, preserving the original per-event snapshot behavior.
 
 ## Ownership and lifetime
 

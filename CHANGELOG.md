@@ -1,6 +1,14 @@
 # Changelog
 
-## 1.1.0 — Unreleased
+## 1.2.0 — Unreleased
+
+- Added direct queue and dispatcher emplacement without an Event temporary.
+- Added ordered-prefix batch publication with explicit partial-success results.
+- Added configurable worker batching with one subscriber snapshot per batch.
+- Added allocation, callback-erasure, and batch-throughput measurements plus
+  construction, exception, ownership, metrics, and snapshot-consistency tests.
+
+## 1.1.0
 
 - Added an optional bounded lock-free MPMC queue policy using DISC 2019 SCQ
   index rings and fixed preallocated event storage.

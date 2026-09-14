@@ -17,3 +17,11 @@ target_link_libraries(event_dispatcher_snapshot_registry_benchmark
         project_options
         project_warnings
 )
+
+add_executable(event_dispatcher_allocation_batch_benchmark allocation_batch_benchmark.cpp)
+target_link_libraries(event_dispatcher_allocation_batch_benchmark
+    PRIVATE
+        event_dispatcher::event_dispatcher
+        project_options
+        project_warnings
+)

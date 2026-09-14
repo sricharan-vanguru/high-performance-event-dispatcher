@@ -29,4 +29,12 @@ concept concurrent_queue = requires(Queue& queue, Event event, std::stop_token s
     { queue.closed() } -> std::same_as<bool>;
 };
 
+// Emplacement is an optional queue capability rather than part of the baseline
+// policy contract. Existing third-party queue policies remain usable, while the
+// dispatcher exposes try_emplace only when the selected policy supports it.
+template <typename Queue, typename... Args>
+concept emplacing_queue = requires(Queue& queue, Args&&... args) {
+    { queue.try_emplace(std::forward<Args>(args)...) } -> std::same_as<queue_status>;
+};
+
 } // namespace event_dispatcher::queue

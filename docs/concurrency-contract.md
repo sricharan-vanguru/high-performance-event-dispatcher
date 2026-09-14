@@ -9,10 +9,10 @@ must preserve. Algorithm-specific guarantees may be stronger, but never weaker.
   successful publication result is the acceptance linearization point.
 - **Enqueue**: an accepted event becomes visible to a queue consumer.
 - **Dequeue**: exactly one worker obtains ownership of one queued event.
-- **Snapshot acquisition**: that worker selects the immutable subscriber set
-  used for this delivery.
-- **Broadcast**: the worker offers the dequeued event once to every eligible
-  subscriber in the acquired snapshot.
+- **Snapshot acquisition**: a worker selects the immutable subscriber set used
+  for every event it has claimed in the current worker batch.
+- **Broadcast**: the worker offers each dequeued event once to every eligible
+  subscriber in the batch's acquired snapshot.
 - **Callback entry**: subscriber state grants one invocation permission and
   records it as in flight.
 - **Callback completion**: the callback has returned or thrown, and its in-flight
@@ -43,6 +43,8 @@ distinguishable.
   policy rather than changing global queue semantics.
 - Subscribe/unsubscribe races are resolved by snapshot acquisition and callback
   entry rules, not by wall-clock timestamps.
+- Subscribers added during a worker batch begin with a later snapshot.
+  Synchronous unsubscribe can still prevent later entry from the old snapshot.
 
 ## Synchronous unsubscribe guarantee
 

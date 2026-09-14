@@ -38,6 +38,15 @@ add_test(NAME event_dispatcher.bounded_lock_free_queue
     COMMAND event_dispatcher_bounded_lock_free_queue_tests
 )
 
+add_executable(event_dispatcher_allocation_batch_tests allocation_batch_tests.cpp)
+target_link_libraries(event_dispatcher_allocation_batch_tests
+    PRIVATE
+        event_dispatcher::event_dispatcher
+        project_options
+        project_warnings
+)
+add_test(NAME event_dispatcher.allocation_batch COMMAND event_dispatcher_allocation_batch_tests)
+
 add_executable(event_dispatcher_snapshot_registry_tests
     snapshot_registry_tests.cpp
 )

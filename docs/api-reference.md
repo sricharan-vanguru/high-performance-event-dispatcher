@@ -9,12 +9,14 @@ external lifetime coordination and must not race with public method calls.
 `Event` must be nothrow move-constructible. The default queue policy is
 `bounded_mutex_queue`; the optional `bounded_lock_free_queue` and other
 alternatives must satisfy `concurrent_queue`.
+`try_emplace` participates in overload resolution only when an alternative
+queue policy also satisfies the optional `emplacing_queue` capability.
 The dispatcher is neither copyable nor movable because worker threads and
 lifecycle synchronization have stable ownership.
 
-`dispatcher_config` contains three stable fields: `queue_capacity` must satisfy
-the selected queue policy, `worker_count` must be non-zero, and `shutdown`
-selects the policy used by parameterless shutdown and destruction.
+`dispatcher_config` contains four fields: `queue_capacity` must satisfy the
+selected queue policy, `worker_count` and `worker_batch_size` must be non-zero,
+and `shutdown` selects the policy used by parameterless shutdown and destruction.
 `hardware_concurrency_defaults()` returns at least one worker even when the
 platform cannot report its topology.
 
@@ -23,6 +25,8 @@ platform cannot report its topology.
 | Constructor | Not applicable | May throw for invalid configuration, allocation failure, or thread creation failure |
 | `subscribe(callback)` | Safe with publication and other subscriptions | Throws `invalid_argument` for an empty callback and `logic_error` after shutdown begins; allocation may throw |
 | `try_publish(event)` | Safe for multiple producers | Returns immediately with `success`, `full`, or `closed`; event construction/copy exceptions propagate |
+| `try_emplace(args...)` | Safe for multiple producers | Constructs directly after capacity reservation; `full`/`closed` do not consume arguments; constructor exceptions propagate after rollback |
+| `try_publish_batch(span)` | Safe for multiple producers | Accepts an ordered prefix and stops at the first failure; reports requested count, accepted prefix, and terminal status |
 | `publish(event, stop)` | Safe for multiple producers | Waits interruptibly; returns `success`, `closed`, or `stopped` |
 | `publish_for(event, timeout, stop)` | Safe for multiple producers | Also returns `timeout` when capacity remains unavailable |
 | `publish_until(event, deadline, stop)` | Safe for multiple producers | Uses `steady_clock`; immediate capacity wins over an expired deadline or requested stop |
@@ -32,6 +36,10 @@ platform cannot report its topology.
 | `subscriber_count()` | Safe | Synchronized snapshot that may become stale immediately |
 | `lifecycle()` | Safe | Atomic lifecycle observation |
 | `metrics()` | Safe | Relaxed atomic diagnostic snapshot; exact after producers stop and shutdown completes |
+
+Workers dequeue at most `worker_batch_size` events and use one subscriber
+snapshot for that complete batch. See the
+[batching contract](allocation-emplacement-batching.md).
 
 Successful publication transfers event responsibility to the dispatcher. A
 failed rvalue publication does not move from the supplied event. If copying an
@@ -77,6 +85,7 @@ under the queue's exclusive state transition.
 |---|---|
 | Constructor | Allocates fixed ring storage; rejects zero capacity |
 | `try_push` | Returns immediately with `success`, `full`, or `closed` |
+| `try_emplace` | Direct construction with argument retention on `full`/`closed` and exception rollback |
 | `wait_push` | Waits for capacity, close, or cancellation |
 | `wait_push_until` | Adds steady-clock deadline expiry |
 | `try_pop` | Returns immediately with an event, `empty`, or `closed` |

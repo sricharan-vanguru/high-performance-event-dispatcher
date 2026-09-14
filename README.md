@@ -11,6 +11,8 @@ queues, immutable subscriber snapshots, safe synchronous unsubscription, and a
 
 - Multiple producers and worker threads
 - Optional bounded lock-free MPMC publication policy
+- Direct in-place event construction and ordered-prefix batch publication
+- Configurable worker batching with explicit snapshot semantics
 - Bounded publication with explicit backpressure
 - No registry modification lock on the callback dispatch path
 - Safe synchronous unsubscribe with no callback executing after it returns
@@ -50,6 +52,16 @@ config.queue_capacity = 1024; // Power of two and at least two.
 fast_dispatcher dispatcher{config};
 ```
 
+Construct directly in queue storage or publish an ordered batch:
+
+```cpp
+dispatcher.try_emplace(42); // Constructs int directly in the queue slot.
+
+std::array<int, 3> events{1, 2, 3};
+const auto result = dispatcher.try_publish_batch(std::span<int>{events});
+// [0, result.accepted) was accepted. Processing stopped at result.status.
+```
+
 ## Documentation
 
 - [Architecture](docs/architecture.md)
@@ -58,6 +70,7 @@ fast_dispatcher dispatcher{config};
 - [Policy boundaries](docs/policy-boundaries.md)
 - [Bounded mutex queue](docs/bounded-mutex-queue.md)
 - [Bounded lock-free MPMC queue](docs/bounded-lock-free-queue.md)
+- [Allocation control, emplacement, and batching](docs/allocation-emplacement-batching.md)
 - [Subscriber state and snapshot registry](docs/snapshot-registry.md)
 - [Worker pool and reference dispatcher](docs/reference-dispatcher.md)
 - [Shutdown and backpressure](docs/shutdown-backpressure.md)

@@ -55,6 +55,28 @@ template <typename Event> class bounded_mutex_queue final {
         return try_push_impl(event);
     }
 
+    // Constructs directly in the reserved ring slot. Arguments are not
+    // consumed when the queue is full or closed, and a throwing constructor
+    // leaves the queue unchanged.
+    template <typename... Args>
+        requires std::constructible_from<Event, Args...>
+    [[nodiscard]] queue_status try_emplace(Args&&... args) {
+        std::unique_lock lock{mutex_};
+        if (closed_) {
+            return queue_status::closed;
+        }
+        if (size_ == slots_.size()) {
+            return queue_status::full;
+        }
+
+        slots_[tail_].emplace(std::forward<Args>(args)...);
+        tail_ = increment(tail_);
+        ++size_;
+        lock.unlock();
+        not_empty_.notify_one();
+        return queue_status::success;
+    }
+
     // Wait until space exists, the queue closes, or cancellation is requested.
     // Immediate progress wins: if space is already available, the operation
     // succeeds even when the stop token is concurrently requested.

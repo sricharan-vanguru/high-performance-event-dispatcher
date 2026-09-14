@@ -15,8 +15,8 @@ using subscriber_id = std::uint64_t;
 
 // Owns one callback and the synchronization required to retire it safely.
 // Registry snapshots keep this control block alive with shared ownership. The
-// subscriber's application object is a separate lifetime concern; Phase 9 will
-// add a weak-ownership helper for that object.
+// subscriber's application object is a separate lifetime concern; a dedicated
+// weak-ownership helper can address that object lifetime independently.
 template <typename Event> class subscriber_state final : public subscription_control {
   public:
     using callback_type = std::function<void(const Event&)>;

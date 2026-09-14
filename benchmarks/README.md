@@ -27,6 +27,21 @@ phase may add one after workload semantics stabilize.
 Lock freedom does not guarantee a performance win under every topology. Keep
 both results even when the mutex baseline is faster.
 
+## Allocation and worker-batch measurements
+
+`event_dispatcher_allocation_batch_benchmark` reports successful lock-free queue
+allocation counts, small/large subscription allocation counts, direct versus
+`std::function` call cost, and dispatcher throughput for worker batch sizes 1,
+4, 16, and 64:
+
+```bash
+./build/benchmarks/benchmarks/event_dispatcher_allocation_batch_benchmark
+```
+
+The executable overrides allocation functions only inside that benchmark
+process. Results are observational and machine-specific; they are not API
+guarantees for allocations performed inside user Event or callback code.
+
 ## Snapshot registry baseline
 
 `event_dispatcher_snapshot_registry_benchmark` measures immutable snapshot

@@ -11,6 +11,9 @@ measured rather than assumed.
 - Lock-free waiting APIs still park, timed waits use a condition variable, and
   close/discard transitions use a lifecycle mutex. The complete dispatcher is
   not lock-free.
+- Batch publication is ordered-prefix, not transactional. Worker batching can
+  improve throughput but can increase per-event latency and ties more events to
+  one membership snapshot.
 - Each publication updates one relaxed global atomic counter. Under extreme
   producer counts this counter can become a contended cache line.
 - Dispatch loads an atomic `shared_ptr` snapshot. The C++ standard does not
@@ -18,10 +21,13 @@ measured rather than assumed.
 - Subscription changes copy the active subscriber vector and are therefore
   `O(subscriber_count)`. Dispatch snapshot acquisition remains approximately
   constant-time in the v1.0 baseline.
-- Callbacks and error handlers use `std::function`; large captures may allocate.
+- Callbacks and error handlers use `std::function`; measured large captures
+  allocate. Current call overhead did not justify custom type erasure.
+- No borrowed PMR resource is exposed because subscription tokens and immutable
+  snapshots can outlive the registry facade that accepted the resource.
 - Multiple workers may invoke the same subscriber concurrently. Per-subscriber
   serialization and slow-subscriber isolation are future delivery policies.
-- Weak object ownership, intrusive lifetime management, batching, queue
+- Weak object ownership, intrusive lifetime management, queue
   sharding, CPU affinity, adaptive waiting, and NUMA awareness are not yet part
   of the stable implementation.
 - Shutdown from a dispatcher callback is prohibited because a worker cannot

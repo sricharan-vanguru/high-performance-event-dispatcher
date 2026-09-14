@@ -58,6 +58,34 @@ template <typename Event> class bounded_lock_free_queue final {
         return try_push_impl(event);
     }
 
+    // Slot reservation happens before construction. If construction throws,
+    // the unpublished index is returned to the available ring so no capacity
+    // or object lifetime is lost.
+    template <typename... Args>
+        requires std::constructible_from<Event, Args...>
+    [[nodiscard]] queue_status try_emplace(Args&&... args) {
+        operation_guard producer{producer_gate_};
+        if (!producer) {
+            return queue_status::closed;
+        }
+
+        const auto index = available_indices_.try_dequeue(false);
+        if (!index) {
+            return queue_status::full;
+        }
+
+        try {
+            std::construct_at(slots_[*index].event(), std::forward<Args>(args)...);
+        } catch (...) {
+            available_indices_.enqueue(*index, false);
+            signal_capacity();
+            throw;
+        }
+
+        publish_constructed_index(*index);
+        return queue_status::success;
+    }
+
     [[nodiscard]] queue_status wait_push(Event&& event, std::stop_token stop = {}) {
         return wait_push_impl(std::move(event), stop);
     }
@@ -257,12 +285,16 @@ template <typename Event> class bounded_lock_free_queue final {
             throw;
         }
 
+        publish_constructed_index(*index);
+        return queue_status::success;
+    }
+
+    void publish_constructed_index(std::size_t index) noexcept {
         occupied_count_.value.fetch_add(1U, std::memory_order_relaxed);
         // Publishing the index is the successful push linearization point. It
         // happens only after the Event lifetime has started in stable storage.
-        published_indices_.enqueue(*index, false);
+        published_indices_.enqueue(index, false);
         signal_data();
-        return queue_status::success;
     }
 
     template <typename Value>
