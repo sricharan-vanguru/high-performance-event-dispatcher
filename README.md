@@ -8,6 +8,22 @@ a bounded mutex queue, copy-on-write subscriber registry, and `std::jthread`
 worker pool. This reference path establishes behavior before a bounded lock-free
 MPMC queue is introduced.
 
+## Project structure
+
+```text
+include/event_dispatcher/   Public API and event-dependent templates
+src/                        Compiled non-template implementation
+tests/                      Correctness, concurrency, and lifetime tests
+examples/                   Small executable usage examples
+benchmarks/                 Reproducible performance workloads
+docs/                       Contracts, designs, and decisions
+```
+
+Templates such as `dispatcher<Event>` and `bounded_mutex_queue<Event>` remain
+header-visible so applications can instantiate them for arbitrary event types.
+Type-independent worker ownership, subscription-token operations, and hardware
+configuration detection are compiled once in the library.
+
 ## Intended guarantees
 
 - Multiple producers and worker threads

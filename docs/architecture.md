@@ -1,5 +1,14 @@
 # Architecture
 
+## Compilation boundary
+
+The library uses a mixed template/compiled design. Event-dependent algorithms
+remain in public headers because users instantiate them with application event
+types. Non-template runtime infrastructure is implemented under `src/` and
+linked through the `event_dispatcher` static library. This keeps implementation
+details and standard-library thread containers out of the public API where the
+type system does not require them to be visible.
+
 ## Design goals
 
 1. Keep publication latency predictable under producer contention.

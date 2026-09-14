@@ -1,6 +1,6 @@
 #pragma once
 
-#include "event_dispatcher/subscription/subscription.hpp"
+#include "event_dispatcher/detail/subscription_control.hpp"
 
 #include <condition_variable>
 #include <cstddef>
@@ -17,9 +17,8 @@ using subscriber_id = std::uint64_t;
 // Registry snapshots keep this control block alive with shared ownership. The
 // subscriber's application object is a separate lifetime concern; Phase 9 will
 // add a weak-ownership helper for that object.
-template <typename Event>
-class subscriber_state final : public subscription_control {
-public:
+template <typename Event> class subscriber_state final : public subscription_control {
+  public:
     using callback_type = std::function<void(const Event&)>;
     using retirement_callback = std::function<void()>;
 
@@ -107,14 +106,14 @@ public:
         return in_flight_;
     }
 
-private:
+  private:
     struct invocation_context {
         const subscriber_state* state;
         invocation_context* previous;
     };
 
     class invocation_scope final {
-    public:
+      public:
         explicit invocation_scope(const subscriber_state* state) noexcept
             : context_{state, current_invocation_} {
             current_invocation_ = &context_;
@@ -125,12 +124,12 @@ private:
 
         ~invocation_scope() { current_invocation_ = context_.previous; }
 
-    private:
+      private:
         invocation_context context_;
     };
 
     class invocation_guard final {
-    public:
+      public:
         explicit invocation_guard(subscriber_state& state) noexcept : state_(state) {}
 
         invocation_guard(const invocation_guard&) = delete;
@@ -138,15 +137,14 @@ private:
 
         ~invocation_guard() { state_.finish_invocation(); }
 
-    private:
+      private:
         subscriber_state& state_;
     };
 
     [[nodiscard]] bool invoking_on_this_thread() const noexcept {
         // A linked stack stored in thread-local storage handles nested dispatch
         // without heap allocation on callback entry.
-        for (auto* context = current_invocation_; context != nullptr;
-             context = context->previous) {
+        for (auto* context = current_invocation_; context != nullptr; context = context->previous) {
             if (context->state == this) {
                 return true;
             }

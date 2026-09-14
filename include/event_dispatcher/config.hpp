@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstddef>
-#include <thread>
 
 namespace event_dispatcher {
 
@@ -21,12 +20,7 @@ struct dispatcher_config final {
     shutdown_policy shutdown{shutdown_policy::drain};
     callback_concurrency callback_mode{callback_concurrency::concurrent};
 
-    [[nodiscard]] static dispatcher_config hardware_concurrency_defaults() noexcept {
-        dispatcher_config config;
-        const auto detected = std::thread::hardware_concurrency();
-        config.worker_count = detected == 0U ? 1U : static_cast<std::size_t>(detected);
-        return config;
-    }
+    [[nodiscard]] static dispatcher_config hardware_concurrency_defaults() noexcept;
 };
 
 } // namespace event_dispatcher

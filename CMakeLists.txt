@@ -11,16 +11,20 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 include(ProjectOptions)
 
-add_library(event_dispatcher INTERFACE)
+add_library(event_dispatcher
+    src/config.cpp
+    src/execution/worker_pool.cpp
+    src/subscription/subscription.cpp
+)
 add_library(event_dispatcher::event_dispatcher ALIAS event_dispatcher)
 
-target_compile_features(event_dispatcher INTERFACE cxx_std_20)
+target_compile_features(event_dispatcher PUBLIC cxx_std_20)
 target_include_directories(event_dispatcher
-    INTERFACE
+    PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
 )
-target_link_libraries(event_dispatcher INTERFACE project_options project_warnings)
+target_link_libraries(event_dispatcher PUBLIC project_options project_warnings)
 
 if(EVENT_DISPATCHER_BUILD_TESTS)
     enable_testing()
