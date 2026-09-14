@@ -21,7 +21,7 @@ namespace event_dispatcher::queue {
 //
 // The ring storage is allocated once by the constructor. Producers and
 // consumers synchronize through one mutex, which deliberately makes this the
-// understandable reference implementation for the future lock-free queue.
+// understandable reference implementation for optimized queue policies.
 //
 // Thread-safety boundary: every method is safe to call concurrently except the
 // destructor. The owner must ensure all callers have stopped before destruction.

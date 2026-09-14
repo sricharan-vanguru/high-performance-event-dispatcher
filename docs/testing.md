@@ -1,11 +1,11 @@
 # Verification and Corner-Case Coverage
 
-The v1.0 tests emphasize externally observable contracts rather than private
+The tests emphasize externally observable contracts rather than private
 implementation details.
 
 | Area | Covered cases |
 |---|---|
-| Queue capacity | Zero and one capacity, empty/full, FIFO, wraparound, move-only events |
+| Queue capacity | Invalid capacities, empty/full, FIFO, tiny-ring wraparound, move-only events |
 | Publication | Copy/move, immediate rejection, blocking, timeout, cancellation, close wake-up, event retention on failure |
 | Queue lifecycle | Drain, exact discard count, exact destruction, repeated close/discard |
 | Topologies | SPSC, MPSC, SPMC, MPMC and multi-subscriber broadcast accounting |
@@ -17,6 +17,7 @@ implementation details.
 | Error handling | Throwing callback, healthy later callback, throwing error handler |
 | Accounting | Full, timeout, cancellation, closed, drain, discard, and stable post-shutdown totals |
 | Packaging | Isolated install, versioned `find_package`, external compile, link, and execution |
+| Lock-free queue | Runtime atomic check, cancelled copy reservation, exact lifetime, long reuse, topology stress, close races, dispatcher policy integration |
 
 The transition stress invariant is:
 
@@ -40,5 +41,5 @@ repeated in release verification.
 - Local ThreadSanitizer executables build, but this host intermittently rejects
   runtime initialization with `unexpected memory mapping`. CI runs TSan on a
   clean GitHub runner.
-- Long-duration soak, weak/intrusive ownership, lock-free wraparound, batching,
+- Multi-hour soak, weak/intrusive ownership, batching,
   affinity, and NUMA cases belong to their corresponding advanced phases.

@@ -3,12 +3,14 @@
 A modular C++20 asynchronous event dispatcher with bounded publication,
 concurrent subscribers, and safe callback lifetime management.
 
-The implementation combines a bounded MPMC queue, immutable subscriber
-snapshots, safe synchronous unsubscription, and a `std::jthread` worker pool.
+The implementation combines interchangeable mutex and lock-free bounded MPMC
+queues, immutable subscriber snapshots, safe synchronous unsubscription, and a
+`std::jthread` worker pool.
 
 ## Features
 
 - Multiple producers and worker threads
+- Optional bounded lock-free MPMC publication policy
 - Bounded publication with explicit backpressure
 - No registry modification lock on the callback dispatch path
 - Safe synchronous unsubscribe with no callback executing after it returns
@@ -35,6 +37,19 @@ Keep the subscription token alive for as long as the callback should remain
 registered. See the API reference for shutdown, backpressure, and thread-safety
 details.
 
+Select the lock-free queue policy explicitly when the target reports the
+required atomics as lock-free:
+
+```cpp
+using fast_dispatcher = event_dispatcher::dispatcher<
+    int,
+    event_dispatcher::queue::bounded_lock_free_queue>;
+
+event_dispatcher::dispatcher_config config;
+config.queue_capacity = 1024; // Power of two and at least two.
+fast_dispatcher dispatcher{config};
+```
+
 ## Documentation
 
 - [Architecture](docs/architecture.md)
@@ -42,6 +57,7 @@ details.
 - [Concurrency contract](docs/concurrency-contract.md)
 - [Policy boundaries](docs/policy-boundaries.md)
 - [Bounded mutex queue](docs/bounded-mutex-queue.md)
+- [Bounded lock-free MPMC queue](docs/bounded-lock-free-queue.md)
 - [Subscriber state and snapshot registry](docs/snapshot-registry.md)
 - [Worker pool and reference dispatcher](docs/reference-dispatcher.md)
 - [Shutdown and backpressure](docs/shutdown-backpressure.md)

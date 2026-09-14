@@ -4,6 +4,7 @@
 #include "event_dispatcher/dispatcher.hpp"
 #include "event_dispatcher/lifecycle.hpp"
 #include "event_dispatcher/metrics.hpp"
+#include "event_dispatcher/queue/bounded_lock_free_queue.hpp"
 #include "event_dispatcher/queue/bounded_mutex_queue.hpp"
 #include "event_dispatcher/queue/concurrent_queue.hpp"
 #include "event_dispatcher/queue/pop_result.hpp"

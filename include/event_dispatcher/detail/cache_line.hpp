@@ -1,15 +1,12 @@
 #pragma once
 
 #include <cstddef>
-#include <new>
 
 namespace event_dispatcher::detail {
 
-inline constexpr std::size_t destructive_interference_size =
-#ifdef __cpp_lib_hardware_interference_size
-    std::hardware_destructive_interference_size;
-#else
-    64U;
-#endif
+// Keep public template layout stable across compiler versions and -mtune flags.
+// Sixty-four bytes is the supported baseline; platform-specific tuning can be
+// introduced later without silently changing installed-header ABI.
+inline constexpr std::size_t destructive_interference_size = 64U;
 
 } // namespace event_dispatcher::detail

@@ -100,10 +100,10 @@ created -> running -> drain-stopping   -> stopped
   starve while some operation completes.
 - **Wait-free**: every operation completes in a bounded number of its own steps.
 
-A mutex queue is blocking. A future bounded MPMC `try_push`/`try_pop` may be
-lock-free after its algorithm and target atomics are verified. Waiting wrappers,
-subscription modification, shared ownership, callbacks, and the dispatcher as a
-whole must not inherit that claim.
+A mutex queue is blocking. The SCQ-backed bounded MPMC policy classifies its
+non-blocking index operations as lock-free only after target atomics are
+verified. Waiting wrappers, subscription modification, shared ownership,
+callbacks, and the dispatcher as a whole do not inherit that claim.
 
 ## Reentrancy
 

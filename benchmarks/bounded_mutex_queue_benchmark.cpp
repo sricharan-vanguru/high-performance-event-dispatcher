@@ -1,3 +1,4 @@
+#include "event_dispatcher/queue/bounded_lock_free_queue.hpp"
 #include "event_dispatcher/queue/bounded_mutex_queue.hpp"
 
 #include <algorithm>
@@ -17,6 +18,7 @@
 namespace {
 
 using clock_type = std::chrono::steady_clock;
+using event_dispatcher::queue::bounded_lock_free_queue;
 using event_dispatcher::queue::bounded_mutex_queue;
 using event_dispatcher::queue::queue_status;
 
@@ -30,19 +32,18 @@ struct benchmark_event {
     std::uint64_t sequence;
 };
 
-[[nodiscard]] std::int64_t percentile(const std::vector<std::int64_t>& sorted,
-                                      double fraction) {
-    const auto position = static_cast<std::size_t>(
-        std::ceil(fraction * static_cast<double>(sorted.size())) - 1.0);
+[[nodiscard]] std::int64_t percentile(const std::vector<std::int64_t>& sorted, double fraction) {
+    const auto position =
+        static_cast<std::size_t>(std::ceil(fraction * static_cast<double>(sorted.size())) - 1.0);
     return sorted[std::min(position, sorted.size() - 1U)];
 }
 
-void run_case(const benchmark_case& config, std::size_t total_events) {
+template <template <typename> class Queue>
+void run_case(std::string_view queue_name, const benchmark_case& config, std::size_t total_events) {
     constexpr std::size_t queue_capacity = 1'024U;
-    bounded_mutex_queue<benchmark_event> queue{queue_capacity};
+    Queue<benchmark_event> queue{queue_capacity};
 
-    std::barrier start_line{
-        static_cast<std::ptrdiff_t>(config.producers + config.consumers + 1U)};
+    std::barrier start_line{static_cast<std::ptrdiff_t>(config.producers + config.consumers + 1U)};
     std::atomic<std::size_t> consumed{0U};
     std::vector<std::vector<std::int64_t>> producer_latencies(config.producers);
     std::vector<std::thread> consumers;
@@ -111,10 +112,11 @@ void run_case(const benchmark_case& config, std::size_t total_events) {
     const double seconds = std::chrono::duration<double>(end - begin).count();
     const double events_per_second = static_cast<double>(published) / seconds;
 
-    std::cout << std::left << std::setw(6) << config.name << std::right << std::setw(12)
-              << static_cast<std::uint64_t>(events_per_second) << std::setw(12)
-              << percentile(latencies, 0.50) << std::setw(12) << percentile(latencies, 0.95)
-              << std::setw(12) << percentile(latencies, 0.99) << '\n';
+    std::cout << std::left << std::setw(12) << queue_name << std::setw(6) << config.name
+              << std::right << std::setw(12) << static_cast<std::uint64_t>(events_per_second)
+              << std::setw(12) << percentile(latencies, 0.50) << std::setw(12)
+              << percentile(latencies, 0.95) << std::setw(12) << percentile(latencies, 0.99)
+              << '\n';
 }
 
 } // namespace
@@ -128,13 +130,13 @@ int main() {
         {"MPMC", 4U, 4U},
     };
 
-    std::cout << "bounded_mutex_queue baseline; events=" << total_events
-              << "; capacity=1024\n"
-              << std::left << std::setw(6) << "case" << std::right << std::setw(12)
-              << "events/s" << std::setw(12) << "p50 ns" << std::setw(12) << "p95 ns"
-              << std::setw(12) << "p99 ns" << '\n';
+    std::cout << "bounded queue comparison; events=" << total_events << "; capacity=1024\n"
+              << std::left << std::setw(12) << "queue" << std::setw(6) << "case" << std::right
+              << std::setw(12) << "events/s" << std::setw(12) << "p50 ns" << std::setw(12)
+              << "p95 ns" << std::setw(12) << "p99 ns" << '\n';
 
     for (const auto& config : cases) {
-        run_case(config, total_events);
+        run_case<bounded_mutex_queue>("mutex", config, total_events);
+        run_case<bounded_lock_free_queue>("lock-free", config, total_events);
     }
 }

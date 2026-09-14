@@ -1,6 +1,15 @@
 # Changelog
 
-## 1.0.0 — Unreleased
+## 1.1.0 — Unreleased
+
+- Added an optional bounded lock-free MPMC queue policy using DISC 2019 SCQ
+  index rings and fixed preallocated event storage.
+- Preserved cancellation, timeout, drain/discard, and throwing-copy behavior
+  through blocking adapters and explicit lifecycle gates.
+- Added wraparound, lifetime, exception, topology, shutdown-race, and dispatcher
+  integration tests plus a mutex-versus-lock-free comparison benchmark.
+
+## 1.0.0
 
 - Stable correctness-first asynchronous dispatcher API.
 - Bounded mutex MPMC queue with reject, blocking, cancellation, and timeout outcomes.

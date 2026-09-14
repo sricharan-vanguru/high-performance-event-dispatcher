@@ -1,20 +1,22 @@
 # Public API and Thread-Safety Reference
 
-This document defines the supported v1.0 surface. Unless stated otherwise, the
+This document defines the supported public surface. Unless stated otherwise, the
 dispatcher object must outlive every thread calling it. Destruction requires
 external lifetime coordination and must not race with public method calls.
 
 ## `dispatcher<Event, QueuePolicy>`
 
 `Event` must be nothrow move-constructible. The default queue policy is
-`bounded_mutex_queue`; alternative policies must satisfy `concurrent_queue`.
+`bounded_mutex_queue`; the optional `bounded_lock_free_queue` and other
+alternatives must satisfy `concurrent_queue`.
 The dispatcher is neither copyable nor movable because worker threads and
 lifecycle synchronization have stable ownership.
 
-`dispatcher_config` contains three stable fields: `queue_capacity` must be
-non-zero, `worker_count` must be non-zero, and `shutdown` selects the policy
-used by parameterless shutdown and destruction. `hardware_concurrency_defaults()`
-returns at least one worker even when the platform cannot report its topology.
+`dispatcher_config` contains three stable fields: `queue_capacity` must satisfy
+the selected queue policy, `worker_count` must be non-zero, and `shutdown`
+selects the policy used by parameterless shutdown and destruction.
+`hardware_concurrency_defaults()` returns at least one worker even when the
+platform cannot report its topology.
 
 | Method | Concurrent use | Result and exceptions |
 |---|---|---|
@@ -83,6 +85,19 @@ under the queue's exclusive state transition.
 | `close_and_discard` | Idempotently closes, destroys queued events, and returns their count |
 | `capacity` | Immutable and safe without locking |
 | `size` / `closed` | Synchronized diagnostic snapshots that can immediately become stale |
+
+## `bounded_lock_free_queue<Event>`
+
+This policy preserves the same publication, waiting, close, and event-lifetime
+contract with two SCQ index rings and preallocated Event slots. Capacity must be
+a power of two and at least two. `try_push` and `try_pop` use no mutex; waiting
+APIs are blocking adapters and lifecycle transitions are serialized
+independently.
+
+`data_path_is_lock_free()` verifies the participating atomics on the running
+target. The lock-free progress claim excludes user Event operations, wake
+notification internals, waiting APIs, shutdown, and the dispatcher as a whole.
+See the [algorithm and memory-ordering rationale](bounded-lock-free-queue.md).
 
 ## `snapshot_registry<Event>`
 

@@ -25,8 +25,8 @@
 
 namespace event_dispatcher {
 
-// Correctness-first asynchronous dispatcher. QueuePolicy is the first hot-path
-// policy seam; later phases can supply a lock-free queue with the same contract.
+// Asynchronous dispatcher whose queue policy can select the understandable
+// mutex baseline or the bounded lock-free MPMC implementation.
 template <typename Event, template <typename> class QueuePolicy = queue::bounded_mutex_queue>
 class dispatcher final {
   public:

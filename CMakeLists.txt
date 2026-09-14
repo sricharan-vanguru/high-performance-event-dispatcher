@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.24)
 
 project(
     high_performance_event_dispatcher
-    VERSION 1.0.0
+    VERSION 1.1.0
     DESCRIPTION "A modular, high-performance concurrent event dispatcher"
     LANGUAGES CXX
 )

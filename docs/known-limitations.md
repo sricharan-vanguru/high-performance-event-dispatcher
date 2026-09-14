@@ -1,10 +1,16 @@
-# v1.0 Known Limitations and Performance Boundaries
+# Known Limitations and Performance Boundaries
 
-The v1.0 release is the correctness reference. It deliberately avoids claims
-that belong to later measured implementations.
+The mutex queue remains the default correctness reference. The lock-free queue
+is an explicit policy because performance and target atomic support must be
+measured rather than assumed.
 
-- Publication uses one mutex-protected bounded MPMC queue. Non-blocking
-  `try_publish` is a non-waiting API, not a lock-free operation.
+- Default publication uses the mutex-protected bounded MPMC queue. Select
+  `bounded_lock_free_queue` explicitly for a lock-free non-blocking queue data
+  path when `data_path_is_lock_free()` reports true on the target.
+- Lock-free queue capacity must be a power of two and at least two.
+- Lock-free waiting APIs still park, timed waits use a condition variable, and
+  close/discard transitions use a lifecycle mutex. The complete dispatcher is
+  not lock-free.
 - Each publication updates one relaxed global atomic counter. Under extreme
   producer counts this counter can become a contended cache line.
 - Dispatch loads an atomic `shared_ptr` snapshot. The C++ standard does not
