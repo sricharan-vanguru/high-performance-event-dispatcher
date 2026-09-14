@@ -3,6 +3,7 @@
 #include "event_dispatcher/queue/pop_result.hpp"
 #include "event_dispatcher/queue/queue_status.hpp"
 
+#include <chrono>
 #include <concepts>
 #include <cstddef>
 #include <stop_token>
@@ -16,9 +17,13 @@ template <typename Queue, typename Event>
 concept concurrent_queue = requires(Queue& queue, Event event, std::stop_token stop) {
     { queue.try_push(std::move(event)) } -> std::same_as<queue_status>;
     { queue.wait_push(std::move(event), stop) } -> std::same_as<queue_status>;
+    {
+        queue.wait_push_until(std::move(event), std::chrono::steady_clock::time_point{}, stop)
+    } -> std::same_as<queue_status>;
     { queue.try_pop() } -> std::same_as<pop_result<Event>>;
     { queue.wait_pop(stop) } -> std::same_as<pop_result<Event>>;
     { queue.close() } -> std::same_as<void>;
+    { queue.close_and_discard() } -> std::same_as<std::size_t>;
     { queue.capacity() } noexcept -> std::same_as<std::size_t>;
     { queue.size() } -> std::same_as<std::size_t>;
     { queue.closed() } -> std::same_as<bool>;

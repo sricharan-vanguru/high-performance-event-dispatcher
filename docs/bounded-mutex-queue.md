@@ -30,8 +30,9 @@ a reference for FIFO behavior, capacity, cancellation, close, and event lifetime
 ```
 
 `close()` never discards an accepted event. It prevents future pushes, wakes all
-waiters, and lets consumers drain existing events. Phase 4 will use this behavior
-to implement dispatcher drain shutdown; discard shutdown will be dispatcher-owned.
+waiters, and lets consumers drain existing events. `close_and_discard()` closes
+the same acceptance boundary but atomically destroys queued events and reports
+their count. Events already dequeued remain worker-owned and complete normally.
 
 ## Operation results
 
@@ -42,6 +43,7 @@ to implement dispatcher drain shutdown; discard shutdown will be dispatcher-owne
 | `empty` | Non-blocking pop found no event while queue remains open |
 | `closed` | The requested operation can never succeed because the queue closed |
 | `stopped` | A stop request cancelled an operation that was waiting |
+| `timeout` | A timed push deadline expired while the queue stayed full |
 
 Failed pushes do not move from the caller's event. This supports retry logic:
 

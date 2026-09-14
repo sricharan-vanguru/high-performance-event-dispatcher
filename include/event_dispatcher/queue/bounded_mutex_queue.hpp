@@ -3,6 +3,7 @@
 #include "event_dispatcher/queue/pop_result.hpp"
 #include "event_dispatcher/queue/queue_status.hpp"
 
+#include <chrono>
 #include <concepts>
 #include <condition_variable>
 #include <cstddef>
@@ -24,9 +25,8 @@ namespace event_dispatcher::queue {
 //
 // Thread-safety boundary: every method is safe to call concurrently except the
 // destructor. The owner must ensure all callers have stopped before destruction.
-template <typename Event>
-class bounded_mutex_queue final {
-public:
+template <typename Event> class bounded_mutex_queue final {
+  public:
     static_assert(std::is_nothrow_move_constructible_v<Event>,
                   "bounded_mutex_queue requires a non-throwing Event move constructor");
 
@@ -47,9 +47,7 @@ public:
     //
     // The move occurs only after capacity and lifecycle checks succeed while
     // holding the queue mutex.
-    [[nodiscard]] queue_status try_push(Event&& event) {
-        return try_push_impl(std::move(event));
-    }
+    [[nodiscard]] queue_status try_push(Event&& event) { return try_push_impl(std::move(event)); }
 
     [[nodiscard]] queue_status try_push(const Event& event)
         requires std::copy_constructible<Event>
@@ -70,6 +68,20 @@ public:
         return wait_push_impl(event, stop);
     }
 
+    [[nodiscard]] queue_status wait_push_until(Event&& event,
+                                               std::chrono::steady_clock::time_point deadline,
+                                               std::stop_token stop = {}) {
+        return wait_push_until_impl(std::move(event), deadline, stop);
+    }
+
+    [[nodiscard]] queue_status wait_push_until(const Event& event,
+                                               std::chrono::steady_clock::time_point deadline,
+                                               std::stop_token stop = {})
+        requires std::copy_constructible<Event>
+    {
+        return wait_push_until_impl(event, deadline, stop);
+    }
+
     [[nodiscard]] pop_result<Event> try_pop() {
         std::unique_lock lock{mutex_};
         if (size_ == 0U) {
@@ -88,9 +100,7 @@ public:
         // The stop-aware overload returns false only when cancellation wins
         // while the predicate is false. The predicate also contains closed_, so
         // close wakes a consumer even when no event remains.
-        const bool ready = not_empty_.wait(lock, stop, [this] {
-            return size_ != 0U || closed_;
-        });
+        const bool ready = not_empty_.wait(lock, stop, [this] { return size_ != 0U || closed_; });
 
         if (!ready) {
             return pop_result<Event>::stopped();
@@ -113,6 +123,27 @@ public:
         not_full_.notify_all();
     }
 
+    // Atomically close acceptance and destroy every event that has not yet
+    // been dequeued. A worker that already owns an event is unaffected and
+    // finishes its current broadcast before exiting.
+    [[nodiscard]] std::size_t close_and_discard() {
+        std::size_t discarded = 0U;
+        {
+            std::lock_guard lock{mutex_};
+            closed_ = true;
+            discarded = size_;
+            while (size_ != 0U) {
+                slots_[head_].reset();
+                head_ = increment(head_);
+                --size_;
+            }
+            head_ = tail_;
+        }
+        not_empty_.notify_all();
+        not_full_.notify_all();
+        return discarded;
+    }
+
     [[nodiscard]] std::size_t capacity() const noexcept { return slots_.size(); }
 
     // size() and closed() are synchronized snapshots for diagnostics and tests.
@@ -128,9 +159,8 @@ public:
         return closed_;
     }
 
-private:
-    template <typename Value>
-    [[nodiscard]] queue_status try_push_impl(Value&& event) {
+  private:
+    template <typename Value> [[nodiscard]] queue_status try_push_impl(Value&& event) {
         std::unique_lock lock{mutex_};
         if (closed_) {
             return queue_status::closed;
@@ -148,9 +178,8 @@ private:
     template <typename Value>
     [[nodiscard]] queue_status wait_push_impl(Value&& event, std::stop_token stop) {
         std::unique_lock lock{mutex_};
-        const bool ready = not_full_.wait(lock, stop, [this] {
-            return size_ != slots_.size() || closed_;
-        });
+        const bool ready =
+            not_full_.wait(lock, stop, [this] { return size_ != slots_.size() || closed_; });
 
         if (!ready) {
             return queue_status::stopped;
@@ -166,7 +195,27 @@ private:
     }
 
     template <typename Value>
-    void push_locked(Value&& event) {
+    [[nodiscard]] queue_status wait_push_until_impl(Value&& event,
+                                                    std::chrono::steady_clock::time_point deadline,
+                                                    std::stop_token stop) {
+        std::unique_lock lock{mutex_};
+        const bool ready = not_full_.wait_until(
+            lock, stop, deadline, [this] { return size_ != slots_.size() || closed_; });
+
+        if (!ready) {
+            return stop.stop_requested() ? queue_status::stopped : queue_status::timeout;
+        }
+        if (closed_) {
+            return queue_status::closed;
+        }
+
+        push_locked(std::forward<Value>(event));
+        lock.unlock();
+        not_empty_.notify_one();
+        return queue_status::success;
+    }
+
+    template <typename Value> void push_locked(Value&& event) {
         // The tail slot is always disengaged when size_ is below capacity.
         // optional gives each event an explicit constructed lifetime without
         // requiring Event to be default-constructible.

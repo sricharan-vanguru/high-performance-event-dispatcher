@@ -30,13 +30,14 @@
 - Explicit publication outcomes and callback error containment
 - End-to-end producer, worker, subscriber, and lifetime tests
 
-## Next
-
 ### Phase 4 / v0.5.0 — Shutdown and backpressure hardening
 
-- Drain and discard shutdown state machines
-- Reject, blocking, and timeout backpressure
-- Shutdown race matrix and observable rejection counters
+- Drain and discard lifecycle state machines
+- Reject, interruptible blocking, and timeout publication
+- Exact accepted, rejected, and dropped accounting after shutdown
+- Blocked-producer wake-up and concurrent shutdown race tests
+
+## Next
 
 ### Phase 5 / v1.0.0 — Stable correctness-first release
 

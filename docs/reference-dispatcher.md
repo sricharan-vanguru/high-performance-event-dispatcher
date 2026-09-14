@@ -56,13 +56,13 @@ if a worker later encounters an older snapshot.
 
 - `try_publish` never waits and returns `success`, `full`, or `closed`.
 - `publish` waits for capacity and can be interrupted with `std::stop_token`.
-- `shutdown` is drain-only and idempotent in this phase.
+- `shutdown` is idempotent; Phase 4 supports drain and discard policies.
 - Queue close is the acceptance boundary: earlier accepted events drain; later
   publication returns `closed`.
 - Concurrent calls to `shutdown` are serialized.
 
-Discard shutdown, timeout publication, rejection metrics, and a complete
-lifecycle state machine belong to Phase 4.
+See [shutdown and backpressure](shutdown-backpressure.md) for lifecycle states,
+timeout publication, discard semantics, and accounting.
 
 ## Ordering and concurrency
 

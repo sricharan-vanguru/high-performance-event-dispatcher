@@ -26,8 +26,7 @@ void expect(bool condition, const char* message) {
     }
 }
 
-template <typename Future>
-decltype(auto) get_ready(Future& future) {
+template <typename Future> decltype(auto) get_ready(Future& future) {
     expect(future.wait_for(2s) == std::future_status::ready, "timed out waiting for test thread");
     return future.get();
 }
@@ -100,6 +99,35 @@ void test_close_and_drain() {
            "drained closed queue must remain closed");
     expect(queue.wait_pop().status() == queue_status::closed,
            "wait on drained queue must report closed");
+}
+
+void test_close_and_discard_destroys_queued_events() {
+    bounded_mutex_queue<std::shared_ptr<int>> queue{2U};
+    auto first = std::make_shared<int>(1);
+    auto second = std::make_shared<int>(2);
+    std::weak_ptr<int> first_lifetime = first;
+    std::weak_ptr<int> second_lifetime = second;
+
+    expect(queue.try_push(std::move(first)) == queue_status::success,
+           "first discard setup push failed");
+    expect(queue.try_push(std::move(second)) == queue_status::success,
+           "second discard setup push failed");
+    expect(queue.close_and_discard() == 2U, "discard count mismatch");
+    expect(queue.close_and_discard() == 0U, "repeated discard was not idempotent");
+    expect(first_lifetime.expired() && second_lifetime.expired(),
+           "discard did not destroy queued events");
+    expect(queue.wait_pop().status() == queue_status::closed,
+           "discarded queue did not remain closed");
+}
+
+void test_timed_push_reports_timeout_and_preserves_event() {
+    bounded_mutex_queue<std::string> queue{1U};
+    expect(queue.try_push("occupied") == queue_status::success, "timed push setup failed");
+    std::string retryable{"retryable"};
+    const auto deadline = std::chrono::steady_clock::now() + 20ms;
+    expect(queue.wait_push_until(std::move(retryable), deadline) == queue_status::timeout,
+           "timed push did not report timeout");
+    expect(retryable == "retryable", "timed-out push consumed the event");
 }
 
 void test_waiting_consumer_wakes_for_event() {
@@ -276,12 +304,10 @@ void test_throwing_copy_preserves_queue_structure() {
     expect(queue.try_push(event) == queue_status::success,
            "queue must remain usable after failed copy");
     auto recovered = queue.try_pop();
-    expect(recovered && recovered.value().value == 17,
-           "queue value mismatch after recovered copy");
+    expect(recovered && recovered.value().value == 17, "queue value mismatch after recovered copy");
 }
 
-void run_concurrent_accounting(std::size_t producer_count,
-                               std::size_t consumer_count,
+void run_concurrent_accounting(std::size_t producer_count, std::size_t consumer_count,
                                std::size_t events_per_producer) {
     const std::size_t total_events = producer_count * events_per_producer;
 
@@ -348,8 +374,7 @@ void test_close_during_concurrent_traffic() {
 
     for (std::size_t round = 0; round < rounds; ++round) {
         bounded_mutex_queue<std::size_t> queue{8U};
-        std::barrier start_line{
-            static_cast<std::ptrdiff_t>(producer_count + consumer_count + 1U)};
+        std::barrier start_line{static_cast<std::ptrdiff_t>(producer_count + consumer_count + 1U)};
         std::atomic<std::size_t> accepted{0U};
         std::atomic<std::size_t> consumed{0U};
         std::vector<std::thread> producers;
@@ -391,8 +416,7 @@ void test_close_during_concurrent_traffic() {
         for (auto& consumer : consumers) {
             consumer.join();
         }
-        expect(accepted.load(std::memory_order_relaxed) ==
-                   consumed.load(std::memory_order_relaxed),
+        expect(accepted.load(std::memory_order_relaxed) == consumed.load(std::memory_order_relaxed),
                "close must drain every accepted event exactly once");
     }
 }
@@ -403,6 +427,8 @@ int main() {
     test_capacity_and_fifo();
     test_copy_and_move_only_events();
     test_close_and_drain();
+    test_close_and_discard_destroys_queued_events();
+    test_timed_push_reports_timeout_and_preserves_event();
     test_waiting_consumer_wakes_for_event();
     test_waiting_consumer_wakes_for_close_and_stop();
     test_waiting_producer_wakes_for_space_close_and_stop();

@@ -38,7 +38,8 @@ See the [architecture](docs/architecture.md),
 [policy boundaries](docs/policy-boundaries.md),
 [bounded mutex queue design](docs/bounded-mutex-queue.md),
 [subscriber state and snapshot registry](docs/snapshot-registry.md),
-[worker pool and reference dispatcher](docs/reference-dispatcher.md), and the
+[worker pool and reference dispatcher](docs/reference-dispatcher.md),
+[shutdown and backpressure](docs/shutdown-backpressure.md), and the
 [public roadmap](docs/roadmap.md).
 
 ## Build
@@ -85,6 +86,6 @@ use separate build directories because those runtimes are incompatible.
 
 ## Current status
 
-Phase 3 worker pool and reference dispatcher implemented. No
+Phase 4 shutdown and backpressure hardening implemented. No
 lock-free claim is made before the corresponding implementation, correctness
 tests, and benchmarks exist.

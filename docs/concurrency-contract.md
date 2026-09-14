@@ -28,8 +28,9 @@ A failed publication transfers no event responsibility to the dispatcher. A
 successful publication means the event will follow the selected shutdown and
 delivery policies; it does not mean callbacks have started or completed.
 
-The concrete result states for full, closed, stopped, and timed-out publication
-will be finalized with the Phase 1 queue API.
+Publication reports `success`, `full`, `closed`, `stopped`, or `timeout` so
+overload, lifecycle rejection, producer cancellation, and deadline expiry stay
+distinguishable.
 
 ## Ordering
 
@@ -76,8 +77,8 @@ ownership safely.
 The intended dispatcher states are:
 
 ```text
-constructed -> running -> stopping_drain   -> stopped
-                       `-> stopping_discard -> stopped
+created -> running -> drain-stopping   -> stopped
+                   `-> discard-stopping -> stopped
 ```
 
 - Shutdown is idempotent.
@@ -106,9 +107,9 @@ whole must not inherit that claim.
 
 ## Reentrancy
 
-Callbacks may eventually publish, subscribe, and unsubscribe. No dispatcher
+Callbacks may publish, subscribe, and unsubscribe. No dispatcher
 internal mutex may be held across user callback execution. Recursive publication
 is still subject to capacity and backpressure. Self-unsubscribe follows the
-special rule above. Dispatcher destruction from one of its own worker callbacks
-will be explicitly prohibited or given a non-blocking handoff design before the
-public dispatcher is implemented.
+special rule above. Shutdown or dispatcher destruction from one of its own
+worker callbacks is prohibited because a worker cannot join itself; explicit
+callback-side `shutdown()` throws `std::logic_error`.

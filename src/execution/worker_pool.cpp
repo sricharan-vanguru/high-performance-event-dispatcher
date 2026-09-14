@@ -10,6 +10,19 @@ namespace event_dispatcher::execution {
 
 class worker_pool::implementation final {
   public:
+    class worker_scope final {
+      public:
+        explicit worker_scope(const implementation* owner) noexcept : previous_(current_pool_) {
+            current_pool_ = owner;
+        }
+        worker_scope(const worker_scope&) = delete;
+        worker_scope& operator=(const worker_scope&) = delete;
+        ~worker_scope() { current_pool_ = previous_; }
+
+      private:
+        const implementation* previous_;
+    };
+
     void start(std::size_t worker_count, const worker_function& worker) {
         if (worker_count == 0U) {
             throw std::invalid_argument{"worker_pool requires at least one worker"};
@@ -22,12 +35,13 @@ class worker_pool::implementation final {
         }
 
         workers.reserve(worker_count);
-        worker_ids.reserve(worker_count);
         for (std::size_t index = 0U; index < worker_count; ++index) {
-            // Every jthread owns a callable copy. If creation fails partway,
-            // worker_pool destruction stops and joins the workers that exist.
-            workers.emplace_back(worker, index);
-            worker_ids.push_back(workers.back().get_id());
+            // The thread-local scope identifies this exact pool without relying
+            // on recyclable operating-system thread IDs.
+            workers.emplace_back([this, worker, index](std::stop_token stop) {
+                worker_scope scope{this};
+                worker(stop, index);
+            });
         }
     }
 
@@ -48,20 +62,12 @@ class worker_pool::implementation final {
         }
     }
 
-    [[nodiscard]] bool is_worker_thread() const noexcept {
-        const auto current = std::this_thread::get_id();
-        for (const auto& worker_id : worker_ids) {
-            if (worker_id == current) {
-                return true;
-            }
-        }
-        return false;
-    }
+    [[nodiscard]] bool is_worker_thread() const noexcept { return current_pool_ == this; }
 
     std::vector<std::jthread> workers;
-    // IDs remain immutable after start, allowing race-free callback-side
-    // self-join detection while another thread joins jthread objects.
-    std::vector<std::thread::id> worker_ids;
+
+  private:
+    inline static thread_local const implementation* current_pool_{nullptr};
 };
 
 worker_pool::worker_pool() : implementation_(std::make_unique<implementation>()) {}

@@ -4,6 +4,7 @@
 #include <barrier>
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <exception>
 #include <future>
 #include <memory>
@@ -26,6 +27,16 @@ void expect(bool condition, const char* message) {
     }
 }
 
+template <typename Predicate> void wait_for_condition(Predicate predicate, const char* message) {
+    const auto deadline = std::chrono::steady_clock::now() + 2s;
+    while (!predicate()) {
+        if (std::chrono::steady_clock::now() >= deadline) {
+            throw std::runtime_error{message};
+        }
+        std::this_thread::yield();
+    }
+}
+
 void test_configuration_validation() {
     auto zero_workers = dispatcher_config{};
     zero_workers.worker_count = 0U;
@@ -37,15 +48,22 @@ void test_configuration_validation() {
     }
     expect(rejected, "zero workers were accepted");
 
-    auto discard = dispatcher_config{};
-    discard.shutdown = event_dispatcher::shutdown_policy::discard;
+    auto serialized = dispatcher_config{};
+    serialized.callback_mode = event_dispatcher::callback_concurrency::serialized;
     rejected = false;
     try {
-        dispatcher<int> instance{discard};
+        dispatcher<int> instance{serialized};
     } catch (const std::invalid_argument&) {
         rejected = true;
     }
-    expect(rejected, "unimplemented discard policy was accepted");
+    expect(rejected, "unimplemented serialized callback policy was accepted");
+
+    auto discard = dispatcher_config{};
+    discard.shutdown = event_dispatcher::shutdown_policy::discard;
+    dispatcher<int> discard_instance{discard};
+    discard_instance.shutdown();
+    expect(discard_instance.state() == event_dispatcher::lifecycle_state::stopped,
+           "configured discard shutdown did not stop");
 }
 
 void test_one_event_broadcasts_to_all_subscribers() {
@@ -80,9 +98,8 @@ void test_multiple_producers_exact_accounting_and_drain() {
         config.worker_count = 4U;
         dispatcher<std::size_t> instance{config};
         for (std::size_t index = 0U; index < subscriber_count; ++index) {
-            subscriptions.push_back(instance.subscribe([&](const std::size_t&) {
-                calls.fetch_add(1U, std::memory_order_relaxed);
-            }));
+            subscriptions.push_back(instance.subscribe(
+                [&](const std::size_t&) { calls.fetch_add(1U, std::memory_order_relaxed); }));
         }
 
         std::vector<std::thread> producers;
@@ -108,16 +125,14 @@ void test_multiple_producers_exact_accounting_and_drain() {
 void test_throwing_callbacks_and_error_handler_are_contained() {
     std::atomic<std::size_t> errors{0U};
     std::atomic<std::size_t> healthy_calls{0U};
-    dispatcher<int> instance{
-        {}, [&](std::exception_ptr error) {
-            errors.fetch_add(1U, std::memory_order_relaxed);
-            expect(error != nullptr, "missing callback exception");
-            throw std::runtime_error{"error handler failure"};
-        }};
+    dispatcher<int> instance{{}, [&](std::exception_ptr error) {
+                                 errors.fetch_add(1U, std::memory_order_relaxed);
+                                 expect(error != nullptr, "missing callback exception");
+                                 throw std::runtime_error{"error handler failure"};
+                             }};
     auto throwing = instance.subscribe([](const int&) { throw std::runtime_error{"callback"}; });
-    auto healthy = instance.subscribe([&](const int&) {
-        healthy_calls.fetch_add(1U, std::memory_order_relaxed);
-    });
+    auto healthy = instance.subscribe(
+        [&](const int&) { healthy_calls.fetch_add(1U, std::memory_order_relaxed); });
 
     expect(instance.publish(1) == queue_status::success, "first publish failed");
     expect(instance.publish(2) == queue_status::success, "second publish failed");
@@ -204,9 +219,7 @@ void test_one_worker_preserves_dequeue_order() {
     config.worker_count = 1U;
     dispatcher<std::size_t> instance{config};
     std::vector<std::size_t> observed;
-    auto token = instance.subscribe([&](const std::size_t& event) {
-        observed.push_back(event);
-    });
+    auto token = instance.subscribe([&](const std::size_t& event) { observed.push_back(event); });
 
     for (std::size_t event = 0U; event < 100U; ++event) {
         expect(instance.publish(event) == queue_status::success, "ordered publish failed");
@@ -265,9 +278,8 @@ void test_subscription_changes_during_dispatch() {
     auto original = instance.subscribe([&](const int& event) {
         original_calls.fetch_add(1U, std::memory_order_relaxed);
         if (event == 1) {
-            added = instance.subscribe([&](const int&) {
-                added_calls.fetch_add(1U, std::memory_order_relaxed);
-            });
+            added = instance.subscribe(
+                [&](const int&) { added_calls.fetch_add(1U, std::memory_order_relaxed); });
             first_event_complete.set_value();
         }
     });
@@ -287,15 +299,251 @@ void test_repeated_construction_and_destruction() {
     std::atomic<std::size_t> calls{0U};
     for (std::size_t iteration = 0U; iteration < 50U; ++iteration) {
         dispatcher<int> instance;
-        auto token = instance.subscribe([&](const int&) {
-            calls.fetch_add(1U, std::memory_order_relaxed);
-        });
+        auto token =
+            instance.subscribe([&](const int&) { calls.fetch_add(1U, std::memory_order_relaxed); });
         expect(instance.publish(1) == queue_status::success, "repeated publish failed");
         instance.shutdown();
         static_cast<void>(token);
     }
     expect(calls.load(std::memory_order_relaxed) == 50U,
            "repeated dispatcher destruction lost events");
+}
+
+void test_drain_transition_rejection_and_metrics() {
+    auto config = dispatcher_config{};
+    config.queue_capacity = 4U;
+    dispatcher<int> instance{config};
+    std::promise<void> entered;
+    auto entered_future = entered.get_future();
+    std::promise<void> release;
+    auto release_future = release.get_future().share();
+    std::atomic<std::size_t> calls{0U};
+    auto token = instance.subscribe([&](const int& event) {
+        calls.fetch_add(1U, std::memory_order_relaxed);
+        if (event == 1) {
+            entered.set_value();
+            release_future.wait();
+        }
+    });
+
+    expect(instance.state() == event_dispatcher::lifecycle_state::running,
+           "constructed dispatcher was not running");
+    expect(instance.publish(1) == queue_status::success, "drain setup publish failed");
+    entered_future.get();
+    expect(instance.publish(2) == queue_status::success, "queued drain publish failed");
+
+    std::thread stopper{[&] { instance.shutdown(event_dispatcher::shutdown_policy::drain); }};
+    wait_for_condition(
+        [&] { return instance.state() == event_dispatcher::lifecycle_state::drain_stopping; },
+        "drain-stopping state was not observable");
+    expect(instance.try_publish(3) == queue_status::closed,
+           "publication was accepted after drain began");
+
+    bool subscription_rejected = false;
+    try {
+        static_cast<void>(instance.subscribe([](const int&) {}));
+    } catch (const std::logic_error&) {
+        subscription_rejected = true;
+    }
+    expect(subscription_rejected, "subscription was accepted during drain shutdown");
+
+    release.set_value();
+    stopper.join();
+    instance.shutdown();
+    expect(instance.state() == event_dispatcher::lifecycle_state::stopped,
+           "drain did not reach stopped");
+    subscription_rejected = false;
+    try {
+        static_cast<void>(instance.subscribe([](const int&) {}));
+    } catch (const std::logic_error&) {
+        subscription_rejected = true;
+    }
+    expect(subscription_rejected, "subscription was accepted after shutdown");
+    expect(calls.load(std::memory_order_relaxed) == 2U, "drain lost an accepted event");
+    const auto counters = instance.metrics();
+    expect(counters.accepted == 2U && counters.rejected == 1U && counters.dropped == 0U,
+           "drain metrics mismatch");
+    static_cast<void>(token);
+}
+
+void test_discard_drops_only_queued_events() {
+    auto config = dispatcher_config{};
+    config.queue_capacity = 4U;
+    config.shutdown = event_dispatcher::shutdown_policy::discard;
+    dispatcher<int> instance{config};
+    std::promise<void> entered;
+    auto entered_future = entered.get_future();
+    std::promise<void> release;
+    auto release_future = release.get_future().share();
+    std::atomic<std::size_t> calls{0U};
+    auto token = instance.subscribe([&](const int& event) {
+        calls.fetch_add(1U, std::memory_order_relaxed);
+        if (event == 1) {
+            entered.set_value();
+            release_future.wait();
+        }
+    });
+
+    expect(instance.publish(1) == queue_status::success, "discard active publish failed");
+    entered_future.get();
+    expect(instance.publish(2) == queue_status::success, "first discard queue publish failed");
+    expect(instance.publish(3) == queue_status::success, "second discard queue publish failed");
+
+    std::thread stopper{[&] { instance.shutdown(); }};
+    wait_for_condition(
+        [&] {
+            return instance.state() == event_dispatcher::lifecycle_state::discard_stopping &&
+                   instance.metrics().dropped == 2U;
+        },
+        "discard transition did not remove queued events");
+    release.set_value();
+    stopper.join();
+
+    expect(calls.load(std::memory_order_relaxed) == 1U,
+           "discard interrupted an active callback or delivered queued events");
+    const auto counters = instance.metrics();
+    expect(counters.accepted == 3U && counters.rejected == 0U && counters.dropped == 2U,
+           "discard metrics mismatch");
+    static_cast<void>(token);
+}
+
+void test_timeout_and_cancellation_backpressure() {
+    auto config = dispatcher_config{};
+    config.queue_capacity = 1U;
+    dispatcher<int> instance{config};
+    std::promise<void> entered;
+    auto entered_future = entered.get_future();
+    std::promise<void> release;
+    auto release_future = release.get_future().share();
+    auto token = instance.subscribe([&](const int& event) {
+        if (event == 1) {
+            entered.set_value();
+            release_future.wait();
+        }
+    });
+
+    expect(instance.publish(1) == queue_status::success, "timeout active publish failed");
+    entered_future.get();
+    expect(instance.publish(2) == queue_status::success, "timeout queue fill failed");
+    expect(instance.publish_for(3, 20ms) == queue_status::timeout, "bounded wait did not time out");
+    std::stop_source cancellation;
+    cancellation.request_stop();
+    expect(instance.publish_for(4, 1s, cancellation.get_token()) == queue_status::stopped,
+           "cancelled publication did not report stopped");
+
+    release.set_value();
+    instance.shutdown();
+    const auto counters = instance.metrics();
+    expect(counters.accepted == 2U && counters.rejected == 2U,
+           "timeout/cancellation metrics mismatch");
+    static_cast<void>(token);
+}
+
+void test_discard_wakes_blocked_producer() {
+    auto config = dispatcher_config{};
+    config.queue_capacity = 1U;
+    dispatcher<int> instance{config};
+    std::promise<void> callback_entered;
+    auto callback_entered_future = callback_entered.get_future();
+    std::promise<void> release;
+    auto release_future = release.get_future().share();
+    auto token = instance.subscribe([&](const int& event) {
+        if (event == 1) {
+            callback_entered.set_value();
+            release_future.wait();
+        }
+    });
+
+    expect(instance.publish(1) == queue_status::success, "blocked producer setup failed");
+    callback_entered_future.get();
+    expect(instance.publish(2) == queue_status::success, "blocked producer queue fill failed");
+    std::promise<queue_status> producer_result;
+    auto producer_future = producer_result.get_future();
+    std::thread producer{[&] { producer_result.set_value(instance.publish(3)); }};
+    expect(producer_future.wait_for(20ms) == std::future_status::timeout,
+           "producer did not block on full queue");
+
+    std::thread stopper{[&] { instance.shutdown(event_dispatcher::shutdown_policy::discard); }};
+    expect(producer_future.get() == queue_status::closed,
+           "shutdown did not wake blocked producer with closed status");
+    release.set_value();
+    producer.join();
+    stopper.join();
+    const auto counters = instance.metrics();
+    expect(counters.accepted == 2U && counters.rejected == 1U && counters.dropped == 1U,
+           "blocked producer shutdown metrics mismatch");
+    static_cast<void>(token);
+}
+
+void test_concurrent_shutdown_is_idempotent() {
+    dispatcher<int> instance;
+    std::atomic<std::size_t> calls{0U};
+    auto token =
+        instance.subscribe([&](const int&) { calls.fetch_add(1U, std::memory_order_relaxed); });
+    for (std::size_t event = 0U; event < 100U; ++event) {
+        expect(instance.publish(static_cast<int>(event)) == queue_status::success,
+               "concurrent shutdown setup publish failed");
+    }
+
+    std::vector<std::thread> stoppers;
+    for (std::size_t index = 0U; index < 8U; ++index) {
+        stoppers.emplace_back([&] { instance.shutdown(); });
+    }
+    for (auto& stopper : stoppers) {
+        stopper.join();
+    }
+    expect(instance.state() == event_dispatcher::lifecycle_state::stopped,
+           "concurrent shutdown did not stop");
+    expect(calls.load(std::memory_order_relaxed) == 100U, "concurrent drain lost accepted events");
+    static_cast<void>(token);
+}
+
+void test_shutdown_transition_matrix_under_traffic() {
+    constexpr std::size_t rounds = 30U;
+    constexpr std::size_t producer_count = 4U;
+
+    for (std::size_t round = 0U; round < rounds; ++round) {
+        auto config = dispatcher_config{};
+        config.queue_capacity = 8U;
+        config.worker_count = 4U;
+        dispatcher<std::size_t> instance{config};
+        std::atomic<std::uint64_t> callback_count{0U};
+        auto token = instance.subscribe(
+            [&](const std::size_t&) { callback_count.fetch_add(1U, std::memory_order_relaxed); });
+        std::barrier start_line{static_cast<std::ptrdiff_t>(producer_count + 1U)};
+        std::vector<std::thread> producers;
+        for (std::size_t producer = 0U; producer < producer_count; ++producer) {
+            producers.emplace_back([&, producer] {
+                start_line.arrive_and_wait();
+                std::size_t sequence = producer;
+                while (instance.publish(sequence) == queue_status::success) {
+                    sequence += producer_count;
+                }
+            });
+        }
+
+        start_line.arrive_and_wait();
+        for (std::size_t spin = 0U; spin < 100U; ++spin) {
+            std::this_thread::yield();
+        }
+        const auto policy = round % 2U == 0U ? event_dispatcher::shutdown_policy::drain
+                                             : event_dispatcher::shutdown_policy::discard;
+        instance.shutdown(policy);
+        for (auto& producer : producers) {
+            producer.join();
+        }
+
+        const auto counters = instance.metrics();
+        expect(callback_count.load(std::memory_order_relaxed) + counters.dropped ==
+                   counters.accepted,
+               "shutdown race lost or duplicated an accepted event");
+        expect(counters.rejected == producer_count,
+               "shutdown race did not release every producer exactly once");
+        if (policy == event_dispatcher::shutdown_policy::drain) {
+            expect(counters.dropped == 0U, "drain race unexpectedly dropped events");
+        }
+        static_cast<void>(token);
+    }
 }
 
 } // namespace
@@ -313,4 +561,10 @@ int main() {
     test_unsubscribe_during_dispatch_waits_and_prevents_reentry();
     test_subscription_changes_during_dispatch();
     test_repeated_construction_and_destruction();
+    test_drain_transition_rejection_and_metrics();
+    test_discard_drops_only_queued_events();
+    test_timeout_and_cancellation_backpressure();
+    test_discard_wakes_blocked_producer();
+    test_concurrent_shutdown_is_idempotent();
+    test_shutdown_transition_matrix_under_traffic();
 }
