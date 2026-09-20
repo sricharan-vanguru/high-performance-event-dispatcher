@@ -51,3 +51,18 @@ subscribers. A subscribe/reset iteration counts as two membership changes.
 The expected trade-off is inexpensive, low-lock dispatch reads in exchange for
 `O(subscriber_count)` writes. Results must be recorded with the same machine and
 compiler context described above.
+
+## Subscriber delivery-policy comparison
+
+`event_dispatcher_delivery_policy_benchmark` compares concurrent, serialized,
+and isolated lossless delivery for 100,000 events with four dispatcher workers,
+a worker batch size of 16, and one subscriber:
+
+```bash
+./build/benchmarks/benchmarks/event_dispatcher_delivery_policy_benchmark
+```
+
+It reports publication throughput and p50, p95, and p99 publication latency.
+The isolated result includes bounded-mailbox backpressure and the dedicated
+executor handoff. It does not measure callback completion latency, so use it to
+compare publication-path behavior rather than end-to-end service time.

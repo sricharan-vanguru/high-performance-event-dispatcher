@@ -25,8 +25,13 @@ measured rather than assumed.
   allocate. Current call overhead did not justify custom type erasure.
 - No borrowed PMR resource is exposed because subscription tokens and immutable
   snapshots can outlive the registry facade that accepted the resource.
-- Multiple workers may invoke the same subscriber concurrently. Per-subscriber
-  serialization and slow-subscriber isolation are future delivery policies.
+- Concurrent delivery may invoke the same subscriber on multiple workers.
+  Serialized delivery prevents overlap but does not guarantee worker dequeue
+  order. Isolated delivery provides FIFO mailbox order at the cost of one thread
+  and one bounded queue per isolated subscriber.
+- Lossless isolated delivery can block dispatcher workers and propagate
+  backpressure to the shared event queue. Best-effort isolated delivery avoids
+  that blocking by dropping subscriber-specific deliveries on saturation.
 - Weak object ownership, intrusive lifetime management, queue
   sharding, CPU affinity, adaptive waiting, and NUMA awareness are not yet part
   of the stable implementation.

@@ -23,7 +23,7 @@ platform cannot report its topology.
 | Method | Concurrent use | Result and exceptions |
 |---|---|---|
 | Constructor | Not applicable | May throw for invalid configuration, allocation failure, or thread creation failure |
-| `subscribe(callback)` | Safe with publication and other subscriptions | Throws `invalid_argument` for an empty callback and `logic_error` after shutdown begins; allocation may throw |
+| `subscribe(callback, options)` | Safe with publication and other subscriptions | Options default to concurrent delivery; throws `invalid_argument` for an empty callback, invalid mailbox/threshold settings, or isolated delivery of a non-copyable Event, and `logic_error` after shutdown begins; allocation or isolated thread creation may throw |
 | `try_publish(event)` | Safe for multiple producers | Returns immediately with `success`, `full`, or `closed`; event construction/copy exceptions propagate |
 | `try_emplace(args...)` | Safe for multiple producers | Constructs directly after capacity reservation; `full`/`closed` do not consume arguments; constructor exceptions propagate after rollback |
 | `try_publish_batch(span)` | Safe for multiple producers | Accepts an ordered prefix and stops at the first failure; reports requested count, accepted prefix, and terminal status |
@@ -48,11 +48,14 @@ is incremented because the publication produced no result.
 
 ## Callback and error-handler concurrency
 
-No queue mutex or registry writer mutex is held while user code executes. With
-multiple workers, the same callback and the configured error handler may run
-concurrently for different events. Those callables must therefore protect any
-shared mutable state they access. Callback exceptions are sent to the error
-handler and do not terminate workers; error-handler exceptions are swallowed.
+No queue mutex or registry writer mutex is held while user code executes.
+Concurrent subscriptions can run on multiple dispatcher workers, serialized
+subscriptions prevent overlap with a per-subscriber mutex, and isolated
+subscriptions run on a dedicated subscriber thread. The configured error
+handler may still run concurrently for different subscribers and must protect
+shared mutable state. Callback exceptions are sent to the error handler and do
+not terminate workers or isolated executors; error-handler exceptions are
+swallowed. See [subscriber delivery policies](delivery-policies.md).
 
 ## `subscription`
 
@@ -72,6 +75,7 @@ immediately and completes retirement when the current callback exits.
 | Destructor | Requires external synchronization | Synchronously unsubscribes when non-empty |
 | `reset()` | Requires external synchronization | Idempotently unsubscribes and empties the token |
 | `subscribed()` / `operator bool()` | Requires external synchronization against mutation | Reports whether the controlled subscriber remains active |
+| `metrics()` | Requires external synchronization against token mutation | Returns a relaxed atomic per-subscriber diagnostic snapshot |
 
 ## `bounded_mutex_queue<Event>`
 

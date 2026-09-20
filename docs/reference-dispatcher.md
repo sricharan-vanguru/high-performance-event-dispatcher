@@ -18,9 +18,11 @@ publish(event)
 +-----------------+             +----------+-----------+
                                            |
                                            v
-                                 callback A(event)
-                                 callback B(event)
-                                 callback C(event)
+                                 concurrent callback(event)
+                                 serialized callback(event)
+                                           |
+                                           v
+                                 isolated mailbox -> executor
 ```
 
 Exactly one worker dequeues each accepted event. A worker claims up to its
@@ -72,9 +74,13 @@ callbacks for different events concurrently. Consequently, callback completion
 order is not globally FIFO. With one worker, broadcasts occur serially in queue
 dequeue order. Within one broadcast, subscribers are visited in snapshot order.
 
-The same subscriber can execute concurrently for different events when more
-than one worker exists. Per-subscriber serialization is not provided by this
-delivery policy.
+The default concurrent policy can execute the same subscriber concurrently for
+different events when more than one worker exists. Serialized delivery prevents
+overlap but does not impose dequeue order on workers racing for its mutex.
+Isolated delivery accepts events into one bounded per-subscriber mailbox and
+executes them FIFO on a dedicated thread. See
+[subscriber delivery policies](delivery-policies.md) for overload and shutdown
+semantics.
 
 ## Callback failures
 

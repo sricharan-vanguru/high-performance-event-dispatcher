@@ -17,6 +17,9 @@ queues, immutable subscriber snapshots, safe synchronous unsubscription, and a
 - No registry modification lock on the callback dispatch path
 - Safe synchronous unsubscribe with no callback executing after it returns
 - RAII subscriptions and documented self-unsubscription behavior
+- Concurrent, serialized, or isolated per-subscriber callback delivery
+- Bounded isolated mailboxes with best-effort or lossless overload handling
+- Per-subscription delivery, drop, rejection, error, and slow-callback metrics
 - Drain and discard shutdown policies
 - Callback exception containment and observable delivery accounting
 
@@ -38,6 +41,20 @@ dispatcher.shutdown(); // Drain accepted events and join workers.
 Keep the subscription token alive for as long as the callback should remain
 registered. See the API reference for shutdown, backpressure, and thread-safety
 details.
+
+Isolate a slow callback from dispatcher workers with its own bounded FIFO
+mailbox and executor:
+
+```cpp
+event_dispatcher::subscription_options options;
+options.delivery = event_dispatcher::delivery_policy::isolated;
+options.guarantee = event_dispatcher::delivery_guarantee::best_effort;
+options.mailbox_capacity = 256;
+options.slow_callback_threshold = std::chrono::milliseconds{5};
+
+auto isolated = dispatcher.subscribe(process_event, options);
+const auto subscriber_metrics = isolated.metrics();
+```
 
 Select the lock-free queue policy explicitly when the target reports the
 required atomics as lock-free:
@@ -72,6 +89,7 @@ const auto result = dispatcher.try_publish_batch(std::span<int>{events});
 - [Bounded lock-free MPMC queue](docs/bounded-lock-free-queue.md)
 - [Allocation control, emplacement, and batching](docs/allocation-emplacement-batching.md)
 - [Subscriber state and snapshot registry](docs/snapshot-registry.md)
+- [Subscriber delivery policies](docs/delivery-policies.md)
 - [Worker pool and reference dispatcher](docs/reference-dispatcher.md)
 - [Shutdown and backpressure](docs/shutdown-backpressure.md)
 - [Verification and corner-case coverage](docs/testing.md)

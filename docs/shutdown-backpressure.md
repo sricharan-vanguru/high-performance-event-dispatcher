@@ -26,7 +26,8 @@ Drain performs this sequence:
 
 ```text
 stop acceptance -> wake blocked producers -> consume queued events
-                -> finish callbacks -> join workers -> stopped
+                -> enqueue subscriber deliveries -> join workers
+                -> drain isolated mailboxes -> join executors -> stopped
 ```
 
 Discard atomically closes the queue and destroys events that have not been
@@ -34,7 +35,8 @@ dequeued:
 
 ```text
 stop acceptance -> destroy queued events -> wake blocked producers/consumers
-                -> finish active callbacks -> join workers -> stopped
+                -> discard pending isolated deliveries
+                -> finish active callbacks -> join workers/executors -> stopped
 ```
 
 Discard never interrupts a callback that has already started. Such an event is
@@ -73,3 +75,9 @@ Subscriptions are accepted only while the dispatcher is running. A subscription
 racing with shutdown is serialized against the lifecycle transition: it either
 completes before stopping begins or throws `std::logic_error`. Existing tokens
 remain safe to query or reset during and after shutdown.
+
+An isolated subscription adds bounded backpressure after a worker dequeues an
+event. Best-effort delivery drops for that subscriber when its mailbox is full;
+lossless delivery blocks the worker until space becomes available or delivery
+is stopped. Per-subscription metrics account for this separately from the
+dispatcher queue metrics. See [subscriber delivery policies](delivery-policies.md).

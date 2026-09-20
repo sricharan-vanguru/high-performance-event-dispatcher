@@ -47,6 +47,15 @@ target_link_libraries(event_dispatcher_allocation_batch_tests
 )
 add_test(NAME event_dispatcher.allocation_batch COMMAND event_dispatcher_allocation_batch_tests)
 
+add_executable(event_dispatcher_delivery_policy_tests delivery_policy_tests.cpp)
+target_link_libraries(event_dispatcher_delivery_policy_tests
+    PRIVATE
+        event_dispatcher::event_dispatcher
+        project_options
+        project_warnings
+)
+add_test(NAME event_dispatcher.delivery_policy COMMAND event_dispatcher_delivery_policy_tests)
+
 add_executable(event_dispatcher_snapshot_registry_tests
     snapshot_registry_tests.cpp
 )

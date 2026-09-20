@@ -19,6 +19,7 @@ implementation details.
 | Packaging | Isolated install, versioned `find_package`, external compile, link, and execution |
 | Lock-free queue | Runtime atomic check, cancelled copy reservation, exact lifetime, long reuse, topology stress, close races, dispatcher policy integration |
 | Emplacement and batching | No Event temporary, argument retention, constructor rollback, ordered partial success, per-event metrics, shared batch snapshot |
+| Delivery policies | Concurrent overlap, serialized exclusion, isolated FIFO/fairness, best-effort saturation, lossless backpressure, per-subscriber metrics, unsubscribe/discard, errors, slow callbacks, reentrancy, self-unsubscribe |
 
 The transition stress invariant is:
 
@@ -42,5 +43,5 @@ repeated in release verification.
 - Local ThreadSanitizer executables build, but this host intermittently rejects
   runtime initialization with `unexpected memory mapping`. CI runs TSan on a
   clean GitHub runner.
-- Multi-hour soak, weak/intrusive ownership,
-  affinity, and NUMA cases belong to their corresponding advanced phases.
+- Multi-hour soak, weak/intrusive ownership, affinity, and NUMA cases are not
+  covered by the current suite.

@@ -1,6 +1,16 @@
 # Changelog
 
-## 1.2.0 — Unreleased
+## 1.3.0 — Unreleased
+
+- Added concurrent, serialized, and isolated per-subscriber delivery policies.
+- Added bounded isolated mailboxes with best-effort dropping or lossless
+  backpressure.
+- Added per-subscription delivery, drop, rejection, callback-error, and
+  slow-callback metrics.
+- Added safe isolated-executor shutdown, unsubscription, reentrancy, saturation,
+  fairness, and ordering tests plus a delivery-policy benchmark.
+
+## 1.2.0
 
 - Added direct queue and dispatcher emplacement without an Event temporary.
 - Added ordered-prefix batch publication with explicit partial-success results.

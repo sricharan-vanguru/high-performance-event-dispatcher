@@ -66,12 +66,13 @@ class dispatcher final {
         }
     }
 
-    [[nodiscard]] subscription subscribe(callback_type callback) {
+    [[nodiscard]] subscription subscribe(callback_type callback,
+                                         subscription_options options = {}) {
         std::lock_guard lock{lifecycle_mutex_};
         if (state_->lifecycle.load(std::memory_order_relaxed) != lifecycle_state::running) {
             throw std::logic_error{"cannot subscribe after dispatcher shutdown begins"};
         }
-        return state_->subscribers.subscribe(std::move(callback));
+        return state_->subscribers.subscribe(std::move(callback), options);
     }
 
     [[nodiscard]] queue::queue_status try_publish(Event&& event) {
@@ -177,7 +178,7 @@ class dispatcher final {
     void shutdown() { shutdown(shutdown_policy_); }
 
     void shutdown(shutdown_policy policy) {
-        if (workers_.is_worker_thread()) {
+        if (workers_.is_worker_thread() || state_->subscribers.callback_active_on_this_thread()) {
             throw std::logic_error{"dispatcher shutdown cannot run inside its callback"};
         }
 
@@ -208,8 +209,16 @@ class dispatcher final {
             const auto discarded = state_->events.close_and_discard();
             state_->dropped.fetch_add(static_cast<std::uint64_t>(discarded),
                                       std::memory_order_relaxed);
+            // Wake workers blocked by a lossless isolated mailbox and discard
+            // deliveries already pending in those subscriber mailboxes.
+            state_->subscribers.stop_delivery(false);
         }
         workers_.join();
+        if (policy == shutdown_policy::drain) {
+            // Workers have enqueued every accepted event. Drain and join each
+            // isolated executor before shutdown becomes externally complete.
+            state_->subscribers.stop_delivery(true);
+        }
         {
             std::lock_guard lock{lifecycle_mutex_};
             state_->lifecycle.store(lifecycle_state::stopped, std::memory_order_release);
@@ -237,7 +246,8 @@ class dispatcher final {
         shared_state(std::size_t capacity, std::size_t worker_count, std::size_t batch_size,
                      error_handler handler)
             : events(capacity), worker_batch_size(batch_size), worker_batches(worker_count),
-              on_error(std::move(handler)) {
+              on_error(std::move(handler)),
+              subscribers([this](std::exception_ptr error) { report_error(std::move(error)); }) {
             // Perform every dispatcher-owned batch allocation before starting
             // a worker. Allocation failure then propagates from construction
             // instead of escaping a thread entry function and terminating.
@@ -305,10 +315,10 @@ class dispatcher final {
         }
 
         queue_type events;
-        registry::snapshot_registry<Event> subscribers;
         const std::size_t worker_batch_size;
         std::vector<std::vector<Event>> worker_batches;
         const error_handler on_error;
+        registry::snapshot_registry<Event> subscribers;
         std::atomic<lifecycle_state> lifecycle{lifecycle_state::created};
         std::atomic<std::uint64_t> accepted{0U};
         std::atomic<std::uint64_t> rejected{0U};

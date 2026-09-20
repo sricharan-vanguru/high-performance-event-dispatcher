@@ -35,6 +35,10 @@ void subscription::reset() noexcept {
 
 bool subscription::subscribed() const noexcept { return control_ && control_->subscribed(); }
 
+subscription_metrics subscription::metrics() const noexcept {
+    return control_ ? control_->metrics() : subscription_metrics{};
+}
+
 subscription::operator bool() const noexcept { return subscribed(); }
 
 } // namespace event_dispatcher

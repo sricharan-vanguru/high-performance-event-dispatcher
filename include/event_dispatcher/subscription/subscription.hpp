@@ -1,5 +1,7 @@
 #pragma once
 
+#include "event_dispatcher/delivery.hpp"
+
 #include <memory>
 
 namespace event_dispatcher {
@@ -24,6 +26,7 @@ class subscription final {
 
     void reset() noexcept;
     [[nodiscard]] bool subscribed() const noexcept;
+    [[nodiscard]] subscription_metrics metrics() const noexcept;
     explicit operator bool() const noexcept;
 
   private:

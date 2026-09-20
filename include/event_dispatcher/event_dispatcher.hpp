@@ -2,6 +2,7 @@
 
 #include "event_dispatcher/batch_publish_result.hpp"
 #include "event_dispatcher/config.hpp"
+#include "event_dispatcher/delivery.hpp"
 #include "event_dispatcher/dispatcher.hpp"
 #include "event_dispatcher/lifecycle.hpp"
 #include "event_dispatcher/metrics.hpp"

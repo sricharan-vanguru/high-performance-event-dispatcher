@@ -7,8 +7,13 @@
 int main() {
     std::atomic<int> received{0};
     event_dispatcher::dispatcher<int> dispatcher;
+
+    event_dispatcher::subscription_options options;
+    options.delivery = event_dispatcher::delivery_policy::isolated;
+    options.guarantee = event_dispatcher::delivery_guarantee::lossless;
+    options.mailbox_capacity = 4U;
     auto token = dispatcher.subscribe(
-        [&](const int& event) { received.store(event, std::memory_order_relaxed); });
+        [&](const int& event) { received.store(event, std::memory_order_relaxed); }, options);
     if (dispatcher.try_emplace(40) != event_dispatcher::queue::queue_status::success) {
         return 1;
     }
@@ -17,6 +22,6 @@ int main() {
         return 1;
     }
     dispatcher.shutdown();
-    static_cast<void>(token);
-    return received.load(std::memory_order_relaxed) == 42 ? 0 : 1;
+    return received.load(std::memory_order_relaxed) == 42 && token.metrics().delivered == 3U ? 0
+                                                                                             : 1;
 }
